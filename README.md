@@ -1,1 +1,1 @@
-# DynamicCourierDQN
+# DyCourier

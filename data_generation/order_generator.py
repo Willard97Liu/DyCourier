@@ -2,6 +2,7 @@ import numpy as np
 from typing import List, Tuple
 from data_generation.simulation import SimulationConfig
 
+
 # Order Generation
 class OrderGenerator:
     """Generates orders with peaks during lunch and dinner times based on the paper's settings.
@@ -13,6 +14,7 @@ class OrderGenerator:
     Order placement times are distributed over [0, H0=450] minutes with peaks during
     lunch (12:00 PM–2:00 PM) and dinner (3:00 PM–4:30 PM) to reflect realistic demand surges.
     """
+
     def __init__(self, config: SimulationConfig):
         """Initializes the OrderGenerator with simulation configuration.
 
@@ -79,7 +81,14 @@ class OrderGenerator:
         # Convert to numpy array for easier manipulation
         locations = np.array(locations)
         # Combine order times, ready times, due times, and locations into tuples
-        order_data = list(zip(self.order_times, self.order_ready_times, self.order_due_times, locations))
+        order_data = list(
+            zip(
+                self.order_times,
+                self.order_ready_times,
+                self.order_due_times,
+                locations,
+            )
+        )
         # Shuffle to randomize location assignment to order times
         np.random.shuffle(order_data)
         # Extract shuffled locations
@@ -96,4 +105,11 @@ class OrderGenerator:
             - d_o: Order due time (t_o + 40, minutes).
             - loc: Pickup location index (integer, 0 to N_pickup-1).
         """
-        return list(zip(self.order_times, self.order_ready_times, self.order_due_times, self.order_locations))
+        return list(
+            zip(
+                self.order_times,
+                self.order_ready_times,
+                self.order_due_times,
+                self.order_locations,
+            )
+        )

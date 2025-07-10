@@ -166,8 +166,9 @@ class SimulationUtils:
             pickup_time = max(order[1], t + config.s_p)
             # Check if the order can be delivered before its due time
             # Delivery duration includes pickup service (s_p), travel (t_travel), and dropoff (s_d)
-            # Total duration = s_p + t_travel + s_d = 4 + 20 + 4 = 28 minutes from pickup_time
-            if pickup_time + config.s_p + config.t_travel + config.s_d <= order[2]:
+            # Total duration = t_travel + s_d = 20 + 4 = 24 minutes from pickup_time
+            #### delete config.s_p
+            if pickup_time + config.t_travel + config.s_d <= order[2]:
                 # Iterate through available couriers to find one whose shift covers the delivery
                 for c_idx, c_start, c_end in available_couriers:
                     # Ensure the courier’s shift extends to cover the entire delivery process

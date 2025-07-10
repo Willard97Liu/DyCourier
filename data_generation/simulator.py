@@ -166,6 +166,7 @@ class Simulator:
             t_next = min(t + self.config.decision_interval, self.config.H0)
             # Count lost orders between t and t_next: unassigned orders that become ready
             # (t <= max(r_o, t + s_p) <= t_next) but cannot be delivered by d_o
+            # !!!!!!
             n_lost = self.utils.get_lost_orders(
                 t, t_next, active_orders, active_couriers, new_couriers, self.config
             )
@@ -196,6 +197,7 @@ class Simulator:
                 (start, end) for start, end in active_couriers if start <= t_next < end
             ]
             # Keep orders not past due (t_next < d_o) for next epoch
+            # !!! repeat updating the active order?
             active_orders = [o for o in active_orders if t_next < o[2]]
             # Compute next state (s_{t+Δ}^7) at t_next, reflecting post-action system state
             next_state = self.state_manager.compute_state(
@@ -206,3 +208,8 @@ class Simulator:
 
         # Return experience tuples for DQN training to optimize courier scheduling
         return data
+
+
+# The reward problem, sum on the overall time interval or just one time interval?
+# The threshold
+# Deep learning in transportation science

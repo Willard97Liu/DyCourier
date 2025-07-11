@@ -22,12 +22,12 @@ class StateManager:
         )
         Theta2 = sum(
             1
-            for t_o, _, _, _, _ in active_orders
+            for t_o, _, _, _, _, _ in active_orders
             if t - self.config.state_params["k2"] < t_o <= t
         )
         Theta3 = sum(
             1
-            for _, r_o, d_o, _, _ in active_orders
+            for _, r_o, d_o, _, _, _ in active_orders
             if t < max(r_o, t + self.config.s_p) <= t + self.config.state_params["k3"]
             and max(r_o, t + self.config.s_p)
             + self.config.s_p
@@ -45,7 +45,7 @@ class StateManager:
                         + self.config.t_travel
                         + self.config.s_d
                     )
-                    for _, r_o, d_o, _, _ in active_orders
+                    for _, r_o, d_o, _, _, _ in active_orders
                     if t
                     < max(r_o, t + self.config.s_p)
                     <= t + self.config.state_params["k3"]

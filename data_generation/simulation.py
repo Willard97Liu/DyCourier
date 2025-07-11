@@ -95,7 +95,7 @@ class SimulationUtils:
         active_orders: List[Tuple],
         active_couriers: List[Tuple],
         config: SimulationConfig,
-    ) -> Tuple[List[Tuple], List[Tuple]]:
+    ) -> List[Tuple]:
         """Assigns orders to available couriers greedily, prioritizing by due time.
 
         Iterates through unassigned orders placed by time t (t_o <= t) and not past due (t < d_o).
@@ -115,6 +115,7 @@ class SimulationUtils:
                 - d_o: Order due time (t_o + 40 minutes, latest delivery time).
                 - loc: Pickup location index (integer, 0 to N_pickup-1).
                 - assigned: Courier index (integer) or None if unassigned.
+                - delivered_time: Delivery completion time (minutes) or None if not delivered.
             active_couriers: List of tuples representing courier shifts, each with:
                 - start: Shift start time (minutes).
                 - end: Shift end time (minutes, start + 60 or 90 for 1-hour or 1.5-hour couriers).
@@ -125,71 +126,55 @@ class SimulationUtils:
                 - Other parameters (e.g., H0, delta) for simulation consistency.
 
         Returns:
-            Tuple containing:
-            - Updated list of orders with new assignments (same tuple structure).
-            - List of new assignments as tuples (order_idx, courier_start, courier_end).
+            Updated list of orders with new assignments (same tuple structure).
         """
         # Find indices of unassigned orders placed by time t (t_o <= t) and not past due (t < d_o)
-        # Allows orders to be considered from placement time, relying on pickup_time = max(r_o, t + s_p)
-        # to ensure pickup occurs after ready time (r_o = t_o + 10)
         unassigned = [
             i for i, o in enumerate(active_orders) if o[4] is None and o[0] <= t < o[2]
         ]
         # Create a list of available couriers with their indices and shift times
-        # A courier is available if their shift includes time t (start <= t < end)
         available_couriers = [
             (i, start, end)
             for i, (start, end) in enumerate(active_couriers)
             if start <= t < end
         ]
-        # Collect indices of couriers already assigned to orders to prevent double assignments
+        # Collect indices of couriers already assigned to orders
         assigned_courier_indices = {o[4] for o in active_orders if o[4] is not None}
-        # Filter out already-assigned couriers to ensure one order per courier
+        # Filter out already-assigned couriers
         available_couriers = [
             (i, start, end)
             for i, start, end in available_couriers
             if i not in assigned_courier_indices
         ]
-        # Initialize an empty list to store new assignments made in this epoch
-        assignments = []
-        # Create a copy of active_orders to modify with new assignments
+        # Create a copy of active_orders to modify
         updated_orders = active_orders[:]
-        # Sort unassigned order indices by due time (d_o) to prioritize urgent orders
-        # Ensures orders with earlier due times are assigned first to minimize late deliveries
+        # Sort unassigned order indices by due time (d_o)
         for order_idx in sorted(unassigned, key=lambda i: active_orders[i][2]):
-            # Get the order tuple at the current index
             order = active_orders[order_idx]
-            # Calculate the earliest possible pickup time
-            # pickup_time = max(r_o, t + s_p), where r_o is the order’s ready time (t_o + 10),
-            # and t + s_p is the courier’s arrival time at the pickup location (t + 4 minutes)
-            # Ensures pickup occurs after the order is ready and the courier reaches the location
+            # Calculate earliest pickup time
             pickup_time = max(order[1], t + config.s_p)
-            # Check if the order can be delivered before its due time
-            # Delivery duration includes pickup service (s_p), travel (t_travel), and dropoff (s_d)
-            # Total duration = t_travel + s_d = 20 + 4 = 24 minutes from pickup_time
-            #### delete config.s_p
+            # Check if order can be delivered before due time
             if pickup_time + config.t_travel + config.s_d <= order[2]:
-                # Iterate through available couriers to find one whose shift covers the delivery
                 for c_idx, c_start, c_end in available_couriers:
-                    # Ensure the courier’s shift extends to cover the entire delivery process
-                    # Delivery completes at pickup_time + s_p + t_travel + s_d
-                    if pickup_time + config.s_p + config.t_travel + config.s_d <= c_end:
-                        # Assign the courier to the order by updating the assigned field
+                    # Ensure courier’s shift covers entire delivery
+                    if pickup_time + config.t_travel + config.s_d <= c_end:
+                        # Calculate delivery time
+                        delivered_time = pickup_time + config.t_travel + config.s_d
+                        # Assign courier to order
                         updated_orders[order_idx] = (
-                            order[0],
-                            order[1],
-                            order[2],
-                            order[3],
-                            c_idx,
+                            order[0],  # t_o
+                            order[1],  # r_o
+                            order[2],  # d_o
+                            order[3],  # loc
+                            c_idx,  # assigned
+                            delivered_time,
                         )
-                        # Record the assignment with the order index and courier’s shift times
-                        assignments.append((order_idx, c_start, c_end))
-                        # Remove the courier from available list to prevent re-assignment
-                        available_couriers.remove((c_idx, c_start, c_end))
-                        # Break to move to the next order
+                        # Remove courier from available list
+                        available_couriers = [
+                            c for c in available_couriers if c[0] != c_idx
+                        ]
                         break
-        # Return the updated orders list and the list of new assignments
-        return updated_orders, assignments
+        return updated_orders
 
     @staticmethod
     def get_lost_orders(

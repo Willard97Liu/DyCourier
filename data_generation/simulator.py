@@ -80,83 +80,39 @@ class Simulator:
             - next_state: 7 elements (same as state, for t_next)
         """
         # Initialize active couriers with the base schedule from CourierScheduler
-        # Contains (start, end) tuples for 1-hour (60 minutes) and 1.5-hour (90 minutes) shifts
-        # Copied to avoid modifying the original schedule
         active_couriers = self.courier_scheduler.base_schedule[:]
         # Initialize active orders with all orders generated for the episode
-        # Each order is a tuple (t_o, r_o, d_o, loc, assigned), where:
-        # - t_o: Placement time (in [0, 450])
-        # - r_o: Ready time (t_o + 10)
-        # - d_o: Due time (t_o + 40)
-        # - loc: Pickup location index (0 to 15)
-        # - assigned: None (unassigned initially)
         active_orders = [
-            (t, r, d, loc, None) for t, r, d, loc in self.order_generator.get_orders()
+            (t, r, d, loc, None, None)
+            for t, r, d, loc in self.order_generator.get_orders()
         ]
-        # Initialize list to track assignments as (order_idx, courier_start, courier_end) tuples
-        # Used for record-keeping and debugging
-        order_assignments = []
         # Initialize list for DQN training tuples: [state (7), action (2), reward (1), next_state (7)]
         data = []
 
         # Iterate over decision epochs (t = 0, 5, 10, ..., 450)
         for t in self.decision_epochs:
             # Remove couriers whose shifts are not active at t
-            # Keeps couriers where start <= t < end, ensuring they have started (start <= t)
-            # and haven’t ended (t < end), per the paper’s shift availability (page 15)
             active_couriers = [
                 (start, end) for start, end in active_couriers if start <= t < end
             ]
             # Assign orders greedily using SimulationUtils.assign_orders
-            # Uses t (current decision epoch) to compute pickup_time = max(r_o, t + s_p), where r_o is the order’s ready time
-            # Checks deliverability: pickup_time + s_p + t_travel + s_d <= d_o (total 28 minutes from pickup)
-            # Updates active_orders (sets assigned field to courier index) and returns new assignments
-            active_orders, new_assignments = self.utils.assign_orders(
+            active_orders = self.utils.assign_orders(
                 t, active_orders, active_couriers, self.config
             )
-            # Add new assignments to tracking list for record-keeping
-            order_assignments.extend(new_assignments)
-
-            # Filter active_orders to keep only those not past their due time (t < d_o)
-            # Applies to both unassigned (o[4] is None) and assigned (o[4] is not None) orders
-            # Simplification rationale:
-            # - The original condition (o[4] is None and t < o[2] or o[4] is not None and t < o[2])
-            #   was redundant, as o[4] is None or o[4] is not None covers all orders, making it
-            #   equivalent to t < o[2]. This simplification reduces code complexity while
-            #   maintaining identical behavior.
-            # - Why t is not pickup time: Here, t represents the current decision epoch (0, 5, 10, ...,
-            #   450), incremented by decision_interval=5 minutes, used to evaluate the system state,
-            #   assign orders, and make decisions. The actual pickup time is calculated in
-            #   assign_orders as pickup_time = max(o[1], t + s_p), where o[1] is r_o (ready time,
-            #   t_o + 10) and s_p=4 is the pickup service time. Using t + s_p + t_travel + s_d
-            #   (28 minutes) to estimate delivery completion is incorrect, as it assumes t is the
-            #   pickup time, leading to premature or delayed order removal (e.g., if r_o > t + s_p,
-            #   delivery occurs later). Tracking actual pickup_time (e.g., as o[5]) would allow
-            #   precise removal after t < pickup_time + 28, but this adds complexity to order tuples,
-            #   assign_orders, and StateManager, which is avoided for simplicity.
-            # - Why this simplification: Keeping all orders until t < d_o ensures unassigned orders
-            #   remain in active_orders, contributing to q_orders (count of unassigned orders with
-            #   r_o <= t < d_o), critical for the state vector (s_t^7) per page 15. For assigned
-            #   orders, it assumes couriers are occupied until d_o (up to 40 minutes after t_o),
-            #   which overestimates occupancy (actual delivery takes 28 minutes from pickup) but
-            #   simplifies state management. This reduces assignments, as couriers remain occupied
-            #   longer, leaving more unassigned orders, which helps address the q_orders=0 issue
-            #   observed in previous data (likely due to rapid assignments or premature order removal).
-            #   The tight delivery window in assign_orders (28 minutes vs. 40-minute due time) further
-            #   limits assignments, ensuring non-zero q_orders during peak periods (180–300, 360–450).
-            # - Trade-off: This is less realistic for assigned orders, as couriers complete delivery in
-            #   28 minutes, not 40. However, it aligns with the paper’s focus on unassigned orders for
-            #   q_orders and lost orders for rewards, and avoids additional tuple fields for simplicity.
-            active_orders = [o for o in active_orders if t < o[2]]
+            # Filter unassigned orders (assigned field is None)
+            unassigned_orders = [o for o in active_orders if o[4] is None]
+            # Filter assigned orders that have not yet been delivered (t < delivered_time)
+            assigned_but_have_not_delivered = [
+                o for o in active_orders if o[4] is not None and t < o[5]
+            ]
+            # Active orders are the union of unassigned and assigned-but-not-delivered orders
+            active_orders = unassigned_orders + assigned_but_have_not_delivered
 
             # Compute state vector (s_t^7) at time t
-            # Includes time_remaining (H - t), q_couriers (active couriers), q_orders (unassigned
-            # orders with r_o <= t < d_o), and Theta1-Theta4 (state features)
             state = self.state_manager.compute_state(
                 t, self.courier_scheduler, active_orders
             )
             # Select random action for exploration: (a1, a1_5) where a1, a1_5 in {0, 1, 2}
-            # a1 = number of 1-hour couriers, a1_5 = number of 1.5-hour couriers
             action = random.choice(self.action_space)
             # Unpack action into number of 1-hour and 1.5-hour couriers
             a1, a1_5 = action
@@ -164,49 +120,52 @@ class Simulator:
             new_couriers = [1] * a1 + [1.5] * a1_5
             # Calculate next epoch time (t + 5, capped at H0=450)
             t_next = min(t + self.config.decision_interval, self.config.H0)
-            # Count lost orders between t and t_next: unassigned orders that become ready
-            # (t <= max(r_o, t + s_p) <= t_next) but cannot be delivered by d_o
-            # !!!!!!
+            # Count lost orders between t and t_next
             n_lost = self.utils.get_lost_orders(
                 t, t_next, active_orders, active_couriers, new_couriers, self.config
             )
-            # Compute reward: K_lost * n_lost + sum(K_c[c]) (K_lost=-1, K_c={1:-0.2, 1.5:-0.25})
-            # Negative reward penalizes lost orders and added couriers
+            # Compute reward
             reward = self.config.K_lost * n_lost + sum(
                 self.config.K_c[c] for c in new_couriers
             )
 
-            # Add on-demand couriers starting at t + delta (5 minutes) with 1 or 1.5-hour shifts
+            # Add on-demand couriers starting at t + delta (5 minutes)
             self.courier_scheduler.add_on_demand_couriers(t, action)
-            # Add new couriers to active list: start = t + delta, end = t + delta + c * 60
+            # Add new couriers to active list
             active_couriers.extend(
                 [
                     (t + self.config.delta, t + self.config.delta + c * 60)
                     for c in new_couriers
                 ]
             )
-            # Re-assign orders with updated courier pool to account for new couriers
-            active_orders, new_assignments = self.utils.assign_orders(
+            # Re-assign orders with updated courier pool
+            active_orders = self.utils.assign_orders(
                 t, active_orders, active_couriers, self.config
             )
-            order_assignments.extend(new_assignments)
-
-            # Update for next epoch: remove couriers whose shifts are not active at t_next
-            t_next = min(t + self.config.decision_interval, self.config.H0)
-            active_couriers = [
-                (start, end) for start, end in active_couriers if start <= t_next < end
+            # Update active orders for next epoch: keep unassigned or not-yet-delivered orders not past due
+            unassigned_orders = [
+                o for o in active_orders if o[4] is None and t_next < o[2]
             ]
-            # Keep orders not past due (t_next < d_o) for next epoch
-            # !!! repeat updating the active order?
-            active_orders = [o for o in active_orders if t_next < o[2]]
-            # Compute next state (s_{t+Δ}^7) at t_next, reflecting post-action system state
+            assigned_but_have_not_delivered = [
+                o
+                for o in active_orders
+                if o[4] is not None and t < o[5] and t_next < o[2]
+            ]
+            active_orders = unassigned_orders + assigned_but_have_not_delivered
+
+            # Compute next state at t_next
             next_state = self.state_manager.compute_state(
                 t_next, self.courier_scheduler, active_orders
             )
-            # Store experience tuple: state (7), action (2), reward (1), next_state (7)
+            # Store experience tuple
             data.append(state + list(action) + [reward] + next_state)
 
-        # Return experience tuples for DQN training to optimize courier scheduling
+            # Update couriers for next epoch
+            active_couriers = [
+                (start, end) for start, end in active_couriers if start <= t_next < end
+            ]
+
+        # Return experience tuples for DQN training
         return data
 
 

@@ -68,4 +68,6 @@ class DynamicQVRPEnv(gym.Env):
         next_state = self.state_manager.compute_state(
             t_next, self.courier_scheduler, active_orders
         )
+        
+        
         return reward, next_state

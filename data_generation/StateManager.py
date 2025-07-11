@@ -30,6 +30,7 @@ class StateManager:
         ) 
         #筛选过去k2时刻内 新产生的订单数量
         
+        
         Theta3 = sum(
             1
             for _, r_o, d_o, _, _ in active_orders

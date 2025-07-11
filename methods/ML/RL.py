@@ -176,7 +176,7 @@ def train_DQN(
             ]
             
             # 将骑手分配给订单，更新订单表
-            env.active_orders, new_assignments = env.utils.assign_orders(
+            env.active_orders = env.utils.assign_orders(
                 t, env.active_orders, active_couriers, env.config
             )
             

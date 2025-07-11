@@ -4,56 +4,74 @@ from typing import List, Tuple, Dict
 
 @dataclass
 class SimulationConfig:
-    """Stores simulation parameters from page 15 of the paper.
+    """Stores simulation parameters based on page 15 of the paper 'Dynamic Courier Capacity Acquisition in Rapid Delivery Systems: A Deep Q-Learning Approach.'
 
-    This class centralizes all configuration parameters for the rapid delivery system simulation,
-    following the experimental settings outlined on page 15. It includes parameters for the operating
-    period, courier types, reward structure, and state vector, making it easy to modify or extend the
-    simulation setup.
+    This class centralizes all configuration parameters required for the rapid delivery system simulation. It defines the temporal, spatial, and operational settings, including service and travel times, courier types, and state vector parameters. The settings are derived from the paper’s experimental setup (page 15), with an added travel time parameter to model realistic delivery durations between pickup and dropoff locations. The configuration ensures consistency across simulation components (Simulator, OrderGenerator, CourierScheduler, StateManager) and supports the Markov Decision Process (MDP) for DQN training.
     """
 
-    # Operating period in minutes (default: 540 minutes, or 9 hours)
+    # Total operating period in minutes (H = 540 minutes, or 9 hours, from 9:00 AM to 6:00 PM)
+    # Represents the full simulation duration, during which orders are placed and delivered
     H: float = 540
-    # Order placement period in minutes (default: 450 minutes, first 7.5 hours of H)
+    # Order placement period in minutes (H0 = 450 minutes, or 7.5 hours, from 9:00 AM to 4:30 PM)
+    # Orders can only be placed within [0, H0], after which only deliveries continue until H
     H0: float = 450
-    # Number of pickup locations (default: 16, as specified in the paper)
+    # Number of pickup locations (N_pickup = 16, representing restaurants or stores)
+    # Each location generates orders independently, as specified in the paper
     N_pickup: int = 16
-    # Show-up delay for on-demand couriers in minutes (default: 5 minutes)
+    # Show-up delay for on-demand couriers in minutes (delta = 5)
+    # On-demand couriers added at time t start their shift at t + delta
     delta: float = 5
-    # Decision epoch interval in minutes (default: 5 minutes, decisions every 5 minutes)
+    # Decision epoch interval in minutes (decision_interval = 5)
+    # The simulation makes decisions (e.g., add couriers) every 5 minutes, as per page 15
     decision_interval: float = 5
-    # Courier working period lengths in hours (default: None, set to [1, 1.5] in __post_init__)
+    # List of courier types (C = [1, 1.5] hours, representing shift durations of 1 hour and 1.5 hours)
+    # None by default, initialized in __post_init__ to align with the paper’s settings
     C: List[float] = None
-    # Reward (penalty) for each lost order (default: -1)
+    # Penalty for each lost order (K_lost = -1)
+    # Negative value penalizes lost orders in the reward function (r_t = K_lost * n_lost + courier costs)
     K_lost: float = -1
-    # Reward (cost) for adding couriers, mapping courier type to cost (default: None, set in __post_init__)
+    # Cost of adding couriers (K_c = {1: -0.2, 1.5: -0.25} for 1-hour and 1.5-hour couriers)
+    # None by default, initialized in __post_init__; negative costs reflect penalties in the reward
     K_c: Dict[float, float] = None
-    # Service time at pickup location in minutes (default: 4 minutes)
+    # Pickup service time in minutes (s_p = 4)
+    # Time spent at the pickup location (e.g., collecting the order from a restaurant)
     s_p: float = 4
-    # Service time at dropoff location in minutes (default: 4 minutes)
+    # Dropoff service time in minutes (s_d = 4)
+    # Time spent at the dropoff location (e.g., handing the order to the customer)
     s_d: float = 4
-    # Maximum number of couriers added per type per decision epoch (default: 2)
+    # Travel time between pickup and dropoff locations in minutes (t_travel = 20)
+    # Represents average urban delivery travel time; not in the paper but added for realism
+    t_travel: float = 20
+    # Maximum number of couriers added per type per decision epoch (max_couriers_per_type = 2)
+    # Limits actions to adding 0, 1, or 2 couriers of each type (1-hour, 1.5-hour) per epoch
     max_couriers_per_type: int = 2
-    # Range for number of 1-hour base couriers, D1 ~ U[20,30]
+    # Range for number of base 1-hour couriers (D1 ~ Uniform[20,30])
+    # Defines the initial number of 1-hour couriers scheduled at the start of the simulation
     D1_range: Tuple[int, int] = (20, 30)
-    # Range for number of 1.5-hour base couriers, D1.5 ~ U[10,20]
+    # Range for number of base 1.5-hour couriers (D1.5 ~ Uniform[10,20])
+    # Defines the initial number of 1.5-hour couriers scheduled at the start
     D1_5_range: Tuple[int, int] = (10, 20)
-    # Parameters for state vector computation (default: None, set in __post_init__)
+    # State vector parameters for computing Theta1, Theta2, Theta3, Theta4
+    # Defines time windows and weights for state components (e.g., k1 = 120 minutes for courier changes)
+    # None by default, initialized in __post_init__
     state_params: Dict[str, Tuple[int, int]] = None
 
     def __post_init__(self):
-        """Initializes default values for optional parameters.
+        """Initializes default values for optional parameters after instantiation.
 
-        Sets default values for courier types (C), courier costs (K_c), and state vector
-        parameters if not provided during instantiation. This ensures the simulation uses
-        the paper's default settings for the 7-dimensional state vector (s_t^7).
+        Sets default values for courier types (C), courier costs (K_c), and state parameters
+        if not provided during instantiation. Ensures the simulation uses consistent settings
+        as specified in the paper (page 15) for reproducibility and alignment with the MDP.
         """
-        # Set default courier types: 1-hour and 1.5-hour couriers
+        # Set default courier types if not provided: 1-hour and 1.5-hour shifts
+        # Matches the paper’s specification of two courier types
         self.C = [1, 1.5] if self.C is None else self.C
-        # Set default courier costs: -0.2 for 1-hour, -0.25 for 1.5-hour couriers
+        # Set default courier costs if not provided: -0.2 for 1-hour, -0.25 for 1.5-hour
+        # Negative values penalize adding couriers in the reward function
         self.K_c = {1: -0.2, 1.5: -0.25} if self.K_c is None else self.K_c
-        # Set default state parameters for s_t^7: j1,k1 for courier changes, j2,k2 for past orders,
-        # j3,k3 for future late orders (j=1 for single window, k in minutes)
+        # Set default state parameters if not provided
+        # j1, j2, j3: weights (set to 1); k1, k2, k3: time windows (120, 30, 40 minutes)
+        # Used for computing Theta1 (courier changes), Theta2 (recent orders), Theta3/Theta4 (late orders)
         self.state_params = (
             {"j1": 1, "k1": 120, "j2": 1, "k2": 30, "j3": 1, "k3": 40}
             if self.state_params is None
@@ -61,13 +79,14 @@ class SimulationConfig:
         )
 
 
-# Utility Functions
 class SimulationUtils:
-    """Provides utility functions for the simulation, including order assignment and lost order calculation.
+    """Utility functions for simulation tasks, including order assignment and lost order calculation.
 
-    This class contains static methods to handle common operations in the simulation, such as assigning
-    orders to couriers and determining the number of orders that would be lost if no additional couriers
-    are assigned. These functions are used by the Simulator class to manage system dynamics.
+    Supports the rapid delivery system simulation by providing methods to assign orders to couriers
+    and compute lost orders, aligning with the paper 'Dynamic Courier Capacity Acquisition in Rapid
+    Delivery Systems: A Deep Q-Learning Approach' (page 15). Includes realistic delivery durations
+    with travel time (t_travel=20) to limit assignments, helping maintain non-zero q_orders during
+    peak periods (180–300, 360–450 minutes).
     """
 
     @staticmethod
@@ -79,48 +98,83 @@ class SimulationUtils:
     ) -> Tuple[List[Tuple], List[Tuple]]:
         """Assigns orders to available couriers greedily, prioritizing by due time.
 
-        Iterates through unassigned orders and assigns them to couriers available at time t,
-        ensuring the order can be delivered before its due time. Uses a greedy approach, prioritizing
-        orders with earlier due times to minimize late deliveries.
+        Iterates through unassigned orders placed by time t (t_o <= t) and not past due (t < d_o).
+        Assigns each order to an available courier whose shift covers the entire delivery process
+        (pickup, travel, and dropoff). Prioritizes orders by due time to minimize late deliveries,
+        following the greedy assignment strategy implied in the paper (page 15). Ensures each courier
+        handles at most one order at a time, aligning with the simulation’s one-order-per-courier
+        assumption. The inclusion of travel time (t_travel = 20 minutes) extends the delivery duration
+        to 28 minutes (s_p + t_travel + s_d), reducing assignments and increasing unassigned orders
+        (q_orders) during peak periods, addressing the q_orders=0 issue observed in previous data.
 
         Args:
-            t: Current time in minutes.
-            active_orders: List of tuples (t_o, r_o, d_o, loc, assigned), where t_o is placement time,
-                r_o is ready time, d_o is due time, loc is location, and assigned is courier index or None.
-            active_couriers: List of tuples (start, end) representing courier shift times.
-            config: SimulationConfig object with parameters like s_p (pickup time) and s_d (dropoff time).
+            t: Current time in minutes (decision epoch, e.g., t = 0, 5, 10, ..., 450).
+            active_orders: List of tuples representing orders, each with:
+                - t_o: Order placement time (minutes, t_o in [0, H0]).
+                - r_o: Order ready time (t_o + 10 minutes, when order is available for pickup).
+                - d_o: Order due time (t_o + 40 minutes, latest delivery time).
+                - loc: Pickup location index (integer, 0 to N_pickup-1).
+                - assigned: Courier index (integer) or None if unassigned.
+            active_couriers: List of tuples representing courier shifts, each with:
+                - start: Shift start time (minutes).
+                - end: Shift end time (minutes, start + 60 or 90 for 1-hour or 1.5-hour couriers).
+            config: SimulationConfig object containing parameters:
+                - s_p: Pickup service time (4 minutes).
+                - s_d: Dropoff service time (4 minutes).
+                - t_travel: Travel time (20 minutes).
+                - Other parameters (e.g., H0, delta) for simulation consistency.
 
         Returns:
             Tuple containing:
-            - Updated list of orders with assignments.
-            - List of new assignments as (order_idx, courier_start, courier_end).
+            - Updated list of orders with new assignments (same tuple structure).
+            - List of new assignments as tuples (order_idx, courier_start, courier_end).
         """
-        # Identify unassigned orders that are ready (r_o <= t) and not past due (t < d_o)
+        # Find indices of unassigned orders placed by time t (t_o <= t) and not past due (t < d_o)
+        # Allows orders to be considered from placement time, relying on pickup_time = max(r_o, t + s_p)
+        # to ensure pickup occurs after ready time (r_o = t_o + 10)
         unassigned = [
-            i for i, o in enumerate(active_orders) if o[4] is None and o[1] <= t < o[2]
+            i for i, o in enumerate(active_orders) if o[4] is None and o[0] <= t < o[2]
         ]
-        
-        # Identify couriers available at time t (shift includes t)
+        # Create a list of available couriers with their indices and shift times
+        # A courier is available if their shift includes time t (start <= t < end)
         available_couriers = [
             (i, start, end)
             for i, (start, end) in enumerate(active_couriers)
             if start <= t < end
         ]
-        # Initialize list to store new assignments
+        # Collect indices of couriers already assigned to orders to prevent double assignments
+        assigned_courier_indices = {o[4] for o in active_orders if o[4] is not None}
+        # Filter out already-assigned couriers to ensure one order per courier
+        available_couriers = [
+            (i, start, end)
+            for i, start, end in available_couriers
+            if i not in assigned_courier_indices
+        ]
+        # Initialize an empty list to store new assignments made in this epoch
         assignments = []
-        # Create a copy of active_orders to update with assignments
+        # Create a copy of active_orders to modify with new assignments
         updated_orders = active_orders[:]
-        # Sort unassigned orders by due time (d_o) to prioritize urgent orders
+        # Sort unassigned order indices by due time (d_o) to prioritize urgent orders
+        # Ensures orders with earlier due times are assigned first to minimize late deliveries
         for order_idx in sorted(unassigned, key=lambda i: active_orders[i][2]):
+            # Get the order tuple at the current index
             order = active_orders[order_idx]
-            # Calculate earliest possible pickup time (max of ready time and current time + pickup service time)
+            # Calculate the earliest possible pickup time
+            # pickup_time = max(r_o, t + s_p), where r_o is the order’s ready time (t_o + 10),
+            # and t + s_p is the courier’s arrival time at the pickup location (t + 4 minutes)
+            # Ensures pickup occurs after the order is ready and the courier reaches the location
             pickup_time = max(order[1], t + config.s_p)
-            # Check if order can be delivered on time (pickup_time + service times <= due time)
-            if pickup_time + config.s_p + config.s_d <= order[2]:
-                # Assign to the first available courier whose shift extends beyond pickup time
+            # Check if the order can be delivered before its due time
+            # Delivery duration includes pickup service (s_p), travel (t_travel), and dropoff (s_d)
+            # Total duration = t_travel + s_d = 20 + 4 = 24 minutes from pickup_time
+            #### delete config.s_p
+            if pickup_time + config.t_travel + config.s_d <= order[2]:
+                # Iterate through available couriers to find one whose shift covers the delivery
                 for c_idx, c_start, c_end in available_couriers:
-                    if pickup_time <= c_end:
-                        # Update order with assigned courier index
+                    # Ensure the courier’s shift extends to cover the entire delivery process
+                    # Delivery completes at pickup_time + s_p + t_travel + s_d
+                    if pickup_time + config.s_p + config.t_travel + config.s_d <= c_end:
+                        # Assign the courier to the order by updating the assigned field
                         updated_orders[order_idx] = (
                             order[0],
                             order[1],
@@ -128,11 +182,13 @@ class SimulationUtils:
                             order[3],
                             c_idx,
                         )
-                        # Record assignment
+                        # Record the assignment with the order index and courier’s shift times
                         assignments.append((order_idx, c_start, c_end))
-                        # Remove assigned courier from available list (each courier handles one order at a time)
+                        # Remove the courier from available list to prevent re-assignment
                         available_couriers.remove((c_idx, c_start, c_end))
+                        # Break to move to the next order
                         break
+        # Return the updated orders list and the list of new assignments
         return updated_orders, assignments
 
     @staticmethod
@@ -144,48 +200,64 @@ class SimulationUtils:
         new_couriers: List[float],
         config: SimulationConfig,
     ) -> int:
-        """Calculates the number of orders that would be lost between t and t_next.
+        """Calculates the number of orders lost between t and t_next.
 
-        Determines how many unassigned orders would miss their due time if picked up between
-        t and t_next, considering both current and newly added couriers (starting at t + delta).
-        An order is lost if it cannot be assigned to a courier available at its pickup time.
+        Identifies unassigned orders that become ready between t and t_next (t <= pickup_time <= t_next)
+        but cannot be delivered by their due time due to insufficient courier availability or time
+        constraints. A lost order contributes to the reward penalty (K_lost * n_lost) in the MDP.
+        Incorporates travel time (t_travel = 20 minutes) for realistic delivery duration, aligning
+        with the paper’s lost order definition (page 15). The longer delivery duration may increase
+        lost orders, helping retain unassigned orders in active_orders, which increases q_orders.
 
         Args:
-            t: Current time in minutes.
-            t_next: Next decision epoch time in minutes.
-            active_orders: List of tuples (t_o, r_o, d_o, loc, assigned) for orders.
-            active_couriers: List of tuples (start, end) for current couriers.
-            new_couriers: List of courier types (e.g., [1, 1.5]) to be added at t + delta.
-            config: SimulationConfig object with parameters like delta, s_p, s_d.
+            t: Current time in minutes (start of the current decision epoch).
+            t_next: Next decision epoch time (t + decision_interval, or H0 if at the end).
+            active_orders: List of tuples (t_o, r_o, d_o, loc, assigned), same structure as assign_orders.
+            active_couriers: List of tuples (start, end) for current courier shifts.
+            new_couriers: List of courier types (1 or 1.5 hours) to be added at t + delta.
+            config: SimulationConfig object with parameters:
+                - s_p: Pickup service time (4 minutes).
+                - s_d: Dropoff service time (4 minutes).
+                - t_travel: Travel time (20 minutes).
+                - delta: Show-up delay for new couriers (5 minutes).
 
         Returns:
-            Integer number of orders that would be lost.
+            Integer number of lost orders, used to compute the reward penalty (K_lost * n_lost).
         """
         # Initialize counter for lost orders
         lost = 0
-        # Include new couriers starting at t + delta with their shift durations
+        # Create a temporary list of couriers, including current active couriers
+        # and new couriers starting at t + delta with their respective shift durations
         temp_couriers = active_couriers + [
             (t + config.delta, t + config.delta + c * 60) for c in new_couriers
         ]
-        # Iterate through orders to check for potential lateness
+        # Iterate through all orders to check for potential losses
         for i, o in enumerate(active_orders):
-            # Skip assigned orders
+            # Skip orders that are already assigned (not eligible for loss)
             if o[4] is not None:
                 continue
-            # Calculate earliest possible pickup time
+            # Calculate the earliest possible pickup time for the order
+            # max(r_o, t + s_p) accounts for the order’s ready time and courier travel to pickup
             pickup_time = max(o[1], t + config.s_p)
-            # Check if order could be picked up in [t, t_next] and would be late
+            # Check if the order becomes ready in the interval [t, t_next]
+            # and cannot be delivered by its due time (d_o)
+            # Delivery requires s_p + t_travel + s_d = 28 minutes
             if (
                 t <= pickup_time <= t_next
-                and pickup_time + config.s_p + config.s_d > o[2]
+                and pickup_time + config.s_p + config.t_travel + config.s_d > o[2]
             ):
-                # Check if any courier is available for pickup
+                # Initialize flag to check if the order can be assigned to any courier
                 can_assign = False
+                # Check if any courier (current or new) has a shift that covers the delivery
                 for c_start, c_end in temp_couriers:
-                    if pickup_time <= c_end:
+                    # Ensure the courier’s shift extends to cover pickup + travel + dropoff
+                    if pickup_time + config.t_travel + config.s_d <= c_end:
+                        # If a courier is available, the order can be assigned
                         can_assign = True
+                        # Break to avoid checking further couriers
                         break
-                # If no courier is available, mark order as lost
+                # If no courier can deliver the order on time, increment the lost counter
                 if not can_assign:
                     lost += 1
+        # Return the total number of lost orders for the reward calculation
         return lost

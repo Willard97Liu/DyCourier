@@ -167,41 +167,42 @@ def train_DQN(
     for i_episode in range(num_episodes):
         
         env.reset()
-        active_orders = [] 
+        
         for t in env.decision_epochs:
+            
+            # 选出当前时刻合适时间的骑手
             active_couriers = [
-                (start, end) for start, end in env.active_couriers if t < end
+                (start, end) for start, end in env.active_couriers if start <= t < end
             ]
-            new_orders = [
-                (t_o, r_o, d_o, loc, None)
-                for t_o, r_o, d_o, loc in env.order_generator.get_orders()
-                if t_o <= t < t_o + env.config.decision_interval
-            ]
-            env.active_orders.extend(new_orders)
             
-            
-            # 分配订单, 看顾客和订单的时间，然后将订单分配给顾客
-            env.active_orders, _ = env.utils.assign_orders(
-                t, env.active_orders, env.active_couriers, env.config
+            # 将骑手分配给订单，更新订单表
+            env.active_orders, new_assignments = env.utils.assign_orders(
+                t, env.active_orders, active_couriers, env.config
             )
             
-            # 减去没用的订单
-            env.active_orders = [
-                o
-                for i, o in enumerate(env.active_orders)
-                if o[4] is None
-                or (o[4] is not None and o[2] > t + env.config.s_p + env.config.s_d)
-            ]
+            # 将没有超过订单的截止时间的订单找出来，分析目前的状态
+            active_orders = [o for o in env.active_orders if t < o[2]]
             
             state = env.state_manager.compute_state(
-                t, env.courier_scheduler, env.active_orders
+                t, env.courier_scheduler, active_orders
             )
             
-            
-            # # 分析状态
+            ## analysis state
             action_id = select_action(state)
             action = ACTIONS[action_id] 
             reward, next_state = env.step(t, action)
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
             
             # next_state = torch.tensor(next_state, dtype=torch.float32)
             # action = torch.tensor(action_id.item())

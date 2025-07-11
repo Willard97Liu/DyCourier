@@ -29,10 +29,7 @@ class StateManager:
             1
             for _, r_o, d_o, _, _, _ in active_orders
             if t < max(r_o, t + self.config.s_p) <= t + self.config.state_params["k3"]
-            and max(r_o, t + self.config.s_p)
-            + self.config.s_p
-            + self.config.t_travel
-            + self.config.s_d
+            and max(r_o, t + self.config.s_p) + self.config.t_travel + self.config.s_d
             > d_o
         )
         Theta4 = (
@@ -50,7 +47,6 @@ class StateManager:
                     < max(r_o, t + self.config.s_p)
                     <= t + self.config.state_params["k3"]
                     and max(r_o, t + self.config.s_p)
-                    + self.config.s_p
                     + self.config.t_travel
                     + self.config.s_d
                     > d_o

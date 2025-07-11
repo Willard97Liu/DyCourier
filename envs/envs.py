@@ -35,54 +35,37 @@ class DynamicQVRPEnv(gym.Env):
             (t, r, d, loc, None) for t, r, d, loc in self.order_generator.get_orders()
         ]
         
-        
     
     
     def step(self, t, action):
-        
         a1, a1_5 = action
-        
         new_couriers = [1]*a1 + [1.5]*a1_5
-
         t_next = min(t + self.config.decision_interval, self.config.H0)
         
-        
-        # 添加骑手
+        # 改变骑手
         self.courier_scheduler.add_on_demand_couriers(t, action)
         # Add new couriers to active list: start = t + delta, end = t + delta + c * 60
-        self.active_couriers = self.get_active_couriers(t)
-        
-        
-        
-        # 计算奖励
+        self.active_couriers = self.courier_scheduler.get_active_couriers(t)
+        # 计算奖励 
         n_lost = self.utils.get_lost_orders(
                 t, t_next, self.active_orders, self.active_couriers, self.config
             )
-        reward = self.config.K_lost * n_lost + sum(
-                self.config.K_c[c] for c in new_couriers
-            )
-        
-        
-        
-        
-        # Re-assign orders with updated courier pool to account for new couriers
+        reward = self.config.K_lost * n_lost + sum(self.config.K_c[c] for c in new_couriers)
+        # 改变订单状态
         self.active_orders, _ = self.utils.assign_orders(
             t, self.active_orders, self.active_couriers, self.config
         )
-        
-        
-        
-        
+        # 此处是否多余
         t_next = min(t + self.config.decision_interval, self.config.H0)
         
+        # 此处不理解，这个是临时骑手表，以便计算状态吗？
         active_couriers = [
             (start, end) for start, end in self.active_couriers if start <= t_next < end
         ]
-        
+        # 此处不理解，是用临时订单表，以便计算状态吗？
         active_orders = [o for o in active_orders if t_next < o[2]]
         # Compute next state (s_{t+Δ}^7) at t_next, reflecting post-action system state
         next_state = self.state_manager.compute_state(
             t_next, self.courier_scheduler, active_orders
         )
-
         return reward, next_state

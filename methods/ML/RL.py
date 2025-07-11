@@ -193,20 +193,9 @@ def train_DQN(
             reward, next_state = env.step(t, action)
             
             
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            # next_state = torch.tensor(next_state, dtype=torch.float32)
-            # action = torch.tensor(action_id.item())
-            # memory.push(state, action, reward, next_state)
+            next_state = torch.tensor(next_state, dtype=torch.float32)
+            action = torch.tensor(action_id.item())
+            memory.push(state, action, reward, next_state)
             # # print(f"Step {t}, memory size = {len(memory)}")
 
             # # Move to the next state

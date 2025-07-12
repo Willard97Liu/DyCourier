@@ -59,18 +59,14 @@ class DynamicQVRPEnv(gym.Env):
 
         # 此处不理解，这个是临时骑手表，以便计算状态吗？
         # Kang's Answer:
-        # If I understood correctly, you have adapted this function from the
-        # run_episode function in simulator.
-
-        # However, I have updated the simulator which removed the redundant terms
-        # like the following line.
-
-        # Please find my newest run_episode funcion.
+        # You did not apply the active_couriers, right?
+        # It can be deleted.
 
         active_couriers = [
             (start, end) for start, end in self.active_couriers if start <= t_next < end
         ]
         # 此处不理解，是用临时订单表，以便计算状态吗？
+        # Yes, active_orders is very important for state computation.
         active_orders = [o for o in active_orders if t_next < o[2]]
         # Compute next state (s_{t+Δ}^7) at t_next, reflecting post-action system state
         next_state = self.state_manager.compute_state(

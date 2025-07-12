@@ -151,7 +151,7 @@ def train_DQN(
         else:
             state = state.float()
             
-        state = state.unsqueeze(0)  
+        state = state.unsqueeze(0)  # 增加 batch 维度，变成 [1, state_dim]
         action_id = policy_net(state).max(1).indices.view(1, 1)
         return action_id
     
@@ -166,18 +166,44 @@ def train_DQN(
     
     for i_episode in range(num_episodes):
         
-        state = env.reset()
+        env.reset()
         
         for t in env.decision_epochs:
             
+            
+            
+            active_couriers = [
+                (start, end) for start, end in env.active_couriers if start <= t < end
+            ]
+            
+            print(env.active_orders)
+            
+            # 将骑手分配给订单，更新订单表
+            env.active_orders = env.utils.assign_orders(
+                t, env.active_orders, active_couriers, env.config
+            )
+            
+            
+            print(env.active_orders)
+            
+            # 将没有超过订单的截止时间的订单找出来，分析目前的状态
+            active_orders = [o for o in env.active_orders if t < o[2]]
+            
+            state = env.state_manager.compute_state(
+                t, env.courier_scheduler, active_orders
+            )
+            
+            ## analysis state
             action_id = select_action(state)
-            
-            
             action = ACTIONS[action_id] 
             reward, next_state = env.step(t, action)
+            
             next_state = torch.tensor(next_state, dtype=torch.float32)
             action = torch.tensor(action_id.item())
-        
+            
+
+
+
 
             
             memory.push(state, action, next_state, reward)

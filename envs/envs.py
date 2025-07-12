@@ -35,6 +35,21 @@ class DynamicQVRPEnv(gym.Env):
             (t, r, d, loc, None) for t, r, d, loc in self.order_generator.get_orders()
         ]
         
+        t = 0
+        
+        active_couriers = [
+                (start, end) for start, end in self.active_couriers if start <= t < end
+            ]
+        self.active_orders = self.utils.assign_orders(
+                t, self.active_orders, active_couriers, self.config
+            )
+        active_orders = [o for o in self.active_orders if t < o[2]]
+            
+        state = self.state_manager.compute_state(
+                t, self.courier_scheduler, active_orders
+            )
+        
+        return state
     
     
     def step(self, t, action):
@@ -79,5 +94,4 @@ class DynamicQVRPEnv(gym.Env):
         next_state = self.state_manager.compute_state(
             t_next, self.courier_scheduler, active_orders
         )
-        
         return reward, next_state

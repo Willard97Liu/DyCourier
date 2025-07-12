@@ -67,6 +67,10 @@ class DynamicQVRPEnv(gym.Env):
         ]
         # 此处不理解，是用临时订单表，以便计算状态吗？
         # Yes, active_orders is very important for state computation.
+        # However, I did not compute the state in this way,
+        # as the active_orders I applied is the union of 
+        # 'unassigned' and 'assigned but not delievered'
+        # Check the simulator.
         active_orders = [o for o in active_orders if t_next < o[2]]
         # Compute next state (s_{t+Δ}^7) at t_next, reflecting post-action system state
         next_state = self.state_manager.compute_state(

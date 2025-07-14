@@ -9,16 +9,18 @@ from itertools import count
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
-from torch.distributions import Categorical
 
-import matplotlib.pyplot as plt
+import sys
+import os
+from pathlib import Path
+path = Path(os.path.dirname(__file__))
+sys.path.insert(1, str(path.parent.absolute()))
 
 
-from stable_baselines3.common.evaluation import evaluate_policy
-from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor
-from stable_baselines3.common.utils import set_random_seed
-from stable_baselines3.common.callbacks import EvalCallback
+
+results_dir = Path("results")
+results_dir.mkdir(parents=True, exist_ok=True)  # 如果不存在就创建
+
 
 
 class NN(nn.Module):#(BaseFeaturesExtractor):
@@ -118,10 +120,13 @@ def train_DQN(
     LR = 1e-4,
     BATCH_SIZE = 64,
     hidden_layers = [1024, 1024, 1024],
-    EPISODES = 20,
+    num_episodes = 20,
     update_target_every = 100,
     TAU = 0.01,
-    GAMMA = 0.99
+    GAMMA = 0.99,
+    eval_interval = 2,
+    save = True,
+    model_path = 'model_DQN',
 ):
     
     device = torch.device(
@@ -129,7 +134,7 @@ def train_DQN(
         # "mps" if torch.backends.mps.is_available() else
         "cpu"
     )
-    num_episodes = EPISODES
+    
     len_state = 7
     ACTIONS = [
     (0, 0),
@@ -162,15 +167,6 @@ def train_DQN(
         action_id = policy_net(state).squeeze(1).max(1).indices.view(1, 1)
         return action_id
     
-    # def optimize_model():
-    #     if len(memory) < BATCH_SIZE:
-    #         return
-    #     transitions = memory.sample(BATCH_SIZE)
-    #     batch = Transition(*zip(*transitions))
-    #     optimizer.zero_grad()
-    #     torch.nn.utils.clip_grad_value_(policy_net.parameters(), 100)
-    #     optimizer.step()
-
 
     def optimize_model():
         if len(memory) < BATCH_SIZE:
@@ -254,8 +250,23 @@ def train_DQN(
                 for key in policy_net_state_dict:
                     target_net_state_dict[key] = policy_net_state_dict[key]*TAU + target_net_state_dict[key]*(1-TAU)
                 target_net.load_state_dict(target_net_state_dict)
+            
+            
+            if t == 450 and (i_episode + 1) % eval_interval == 0:
+                # test_r = eval()
+                # mean_r = test_r.mean()
+                # print(f"{i_episode + 1} : {mean_r:.3f}")
                 
+                # if mean_r > best_r:
+                #     best_r = mean_r
+                #     print(f"best! mean rewards: {best_r:.3f}")
+                if save:
+                    # print(f"dkfjdkfjfdk")
+                    torch.save(policy_net.state_dict(), results_dir/f'model_{model_path}')
+                    # print(f"Model saved to: {os.path.abspath(model_path)}")
 
+                    
+                
     return 
     
                 

@@ -82,7 +82,7 @@ class DQNAgent(Agent):
         train_DQN(
             self.env,
             hidden_layers = self.hidden_layers,
-            EPISODES = episodes
+            num_episodes = episodes
         )
         
 

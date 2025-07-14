@@ -12,6 +12,6 @@ def train_agents(
     agent = RLAgent(env, algo='DQN',**agent_configs)
     agent.train(episodes=15)
     
-
+    
 if __name__ == "__main__":
     train_agents()

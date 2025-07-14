@@ -28,7 +28,7 @@ class DynamicQVRPEnv(gym.Env):
         
     
     def reset(self):
-        
+
         self.active_couriers = self.courier_scheduler.base_schedule[:]
         
         self.active_orders = [
@@ -43,8 +43,13 @@ class DynamicQVRPEnv(gym.Env):
         self.active_orders = self.utils.assign_orders(
                 t, self.active_orders, active_couriers, self.config
             )
-        active_orders = [o for o in self.active_orders if t < o[2]]
-            
+        
+        unassigned_orders = [o for o in self.active_orders if o[4] is None]
+        # Filter assigned orders that have not yet been delivered (t < delivered_time)
+        assigned_but_have_not_delivered = [o for o in self.active_orders if o[4] is not None and t < o[5]]
+        # Active orders are the union of unassigned and assigned-but-not-delivered orders
+        active_orders = unassigned_orders + assigned_but_have_not_delivered
+        
         state = self.state_manager.compute_state(
                 t, self.courier_scheduler, active_orders
             )
@@ -75,7 +80,7 @@ class DynamicQVRPEnv(gym.Env):
                     for c in new_couriers
                 ]
             )
-        # Re-assign orders with updated courier pool
+        # 更新了骑手和订单后，用更新后的骑手来分配订单，但这里不用比较时间了吗？？
         self.active_orders = self.utils.assign_orders(
             t, self.active_orders, self.active_couriers, self.config
         )

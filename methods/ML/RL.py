@@ -126,7 +126,7 @@ def train_DQN(
     GAMMA = 0.99,
     eval_interval = 2,
     save = True,
-    model_path = 'model_DQN',
+    model_path = 'DQN',
 ):
     
     device = torch.device(
@@ -169,6 +169,7 @@ def train_DQN(
     
 
     def optimize_model():
+        
         if len(memory) < BATCH_SIZE:
             return
         
@@ -206,7 +207,8 @@ def train_DQN(
         loss.backward()
         torch.nn.utils.clip_grad_value_(policy_net.parameters(), 100)
         optimizer.step()
-        
+    
+    
         
     for i_episode in range(num_episodes):
         
@@ -219,7 +221,6 @@ def train_DQN(
             action_id = select_action(state)
             
             action = ACTIONS[action_id]
-            
             
             reward, next_state = env.step(t, action)
             

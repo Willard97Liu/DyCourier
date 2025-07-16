@@ -16,44 +16,39 @@ from gymnasium import Env
 
 
 class Agent:
-    def __init__(self, env : Env,
-                 n_workers = 2):
+    def __init__(self, env):
         self.env = env
-        self.n_workers = n_workers
     
     def act(self, x, *args, **kwargs):
         return int(self.env.action_space.sample())
     
-    
-    def _simple_run(self, n, initial_instance = 0):
+    def run(self, n):
         
+        ACTIONS = [
+            (0, 0), (1, 0), (0, 1),
+            (2, 0), (1, 1), (0, 2)
+        ]
         episode_rewards = np.zeros(n)
-        actions = [[] for _ in range(n)]
-        infos = [[] for _ in range(n)]
-        
-        for i in tqdm(range(n)):
-            o, info = self.env.reset(initial_instance + i)
-            infos[i].append(info)
-            while True:
-                a = self.act(o)
-                o, r, d, trun, info = self.env.step(a)
-                episode_rewards[i] += r
-                actions[i].append(a)
-                infos[i].append(info)
-                if d or trun:
-                    break
-        
-        return episode_rewards, actions, infos
-    
-    def run(self, n, initial_instance = 0):
-        if self.parallelize:
-            return self._parallel_run(n, initial_instance)
-        else:
-            return self._simple_run(n, initial_instance)
-                
-    def train(self, episodes):
-        pass
-    
+        for i in tqdm(range(n), desc="Evaluating DQN Agent"):
+            state = self.env.reset()
+            episode_reward = 0
+
+            for t in self.env.decision_epochs:
+                state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
+                with torch.no_grad():
+                    q_values = self.model(state_tensor)
+                action_id = q_values.argmax(dim=1).item()
+                action = ACTIONS[action_id]
+
+                reward, next_state = self.env.step(t, action)
+                state = next_state
+                episode_reward += reward
+
+
+            episode_rewards[i] = episode_reward
+
+        return episode_rewards
+
     
     
 class DQNAgent(Agent):
@@ -62,7 +57,7 @@ class DQNAgent(Agent):
     """
     def __init__(
         self,
-        env : Env,
+        env,
         hidden_layers = [1024, 1024, 1024],
         algo = 'DQN', 
         **kwargs
@@ -70,13 +65,13 @@ class DQNAgent(Agent):
         super().__init__(env, **kwargs)
         
         self.model = NN(
-            2,
+            7,
             hidden_layers,
             6
         )
         self.hidden_layers = hidden_layers
-        self.algo = algo
-            
+        
+        
     def train(self, episodes = 1000, **kwargs):
         
         train_DQN(

@@ -132,6 +132,11 @@ class SimulationUtils:
             Updated list of orders with new assignments (same tuple structure).
         """
         # Find indices of unassigned orders placed by time t (t_o <= t) and not past due (t < d_o)
+       
+       
+        # Check the time period of order
+        # It could be simplfied 
+
         unassigned = [
             i for i, o in enumerate(active_orders) if o[4] is None and o[0] <= t < o[2]
         ]
@@ -224,15 +229,17 @@ class SimulationUtils:
             # Skip orders that are already assigned (not eligible for loss)
             if o[4] is not None:
                 continue
+            # Assign courier 
             # Calculate the earliest possible pickup time for the order
             # max(r_o, t + s_p) accounts for the order’s ready time and courier travel to pickup
             pickup_time = max(o[1], t + config.s_p)
             # Check if the order becomes ready in the interval [t, t_next]
             # and cannot be delivered by its due time (d_o)
             # Delivery requires s_p + t_travel + s_d = 28 minutes
+            # Check the inequality
             if (
                 t <= pickup_time <= t_next
-                and pickup_time + config.s_p + config.t_travel + config.s_d > o[2]
+                and pickup_time + config.t_travel + config.s_d > o[2]
             ):
                 # Initialize flag to check if the order can be assigned to any courier
                 can_assign = False

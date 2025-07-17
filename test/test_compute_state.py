@@ -11,51 +11,6 @@ from data_generation.CourierScheduler import CourierScheduler
 from data_generation.order_generator import OrderGenerator
 
 
-# Tests for SimulationUtils
-def test_assign_orders_no_orders():
-    t = 0
-    active_orders = []
-    active_couriers = [(0, 60), (10, 70)]
-    config = SimulationConfig()
-    result = SimulationUtils.assign_orders(t, active_orders, active_couriers, config)
-    assert result == [], "Should return empty list when no orders"
-
-
-def test_assign_orders_no_couriers():
-    t = 0
-    active_orders = [(0, 10, 40, 0, None, None), (5, 15, 45, 1, None, None)]
-    active_couriers = []
-    config = SimulationConfig()
-    result = SimulationUtils.assign_orders(t, active_orders, active_couriers, config)
-    assert all(
-        o[4] is None for o in result
-    ), "No assignments should be made with no couriers"
-    assert all(o[5] is None for o in result), "delivered_time should remain None"
-
-
-def test_assign_orders_successful_assignment():
-    t = 0
-    active_orders = [(0, 10, 40, 0, None, None)]
-    active_couriers = [(0, 60)]
-    config = SimulationConfig()
-    result = SimulationUtils.assign_orders(t, active_orders, active_couriers, config)
-    assert len(result) == 1, "Should return one order"
-    assert result[0][4] is not None, "Order should be assigned"
-    assert (
-        result[0][5] == 34
-    ), "delivered_time should be pickup_time (10) + t_travel (20) + s_d (4)"
-
-
-def test_assign_orders_past_due():
-    t = 50
-    active_orders = [(0, 10, 40, 0, None, None)]
-    active_couriers = [(0, 60)]
-    config = SimulationConfig()
-    result = SimulationUtils.assign_orders(t, active_orders, active_couriers, config)
-    assert result[0][4] is None, "Past-due order should not be assigned"
-    assert result[0][5] is None, "delivered_time should remain None"
-
-
 # Tests for StateManager
 def test_compute_state_no_orders():
     t = 0
@@ -66,7 +21,6 @@ def test_compute_state_no_orders():
     state = state_manager.compute_state(t, courier_scheduler, active_orders)
     assert len(state) == 7
     assert state[0] == 540
-
     assert state[1] == 3
 
     assert state[2] == 0

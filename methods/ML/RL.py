@@ -77,7 +77,7 @@ def train_DQN(
     
     LR = 1e-4,
     BATCH_SIZE = 64,
-    update_target_every = 100,
+    update_target_every = 5,
     TAU = 0.01,
     GAMMA = 0.99,
     eval_interval = 2,
@@ -106,12 +106,17 @@ def train_DQN(
     target_net = NN(len_state, deepcopy(hidden_layers), n_actions)
     
     global steps_done
-    steps_done = 0
     
+    steps_done = 0
     target_net.load_state_dict(policy_net.state_dict())
     
     optimizer = optim.AdamW(policy_net.parameters(), lr=LR, amsgrad=True)
     memory = ReplayMemory(10000)
+    
+    start_episode = 0
+    if save:
+        start_episode = load_latest_model(policy_net, model_path)
+        target_net.load_state_dict(policy_net.state_dict())
     
     def select_action(state):
         if not isinstance(state, torch.Tensor):
@@ -128,13 +133,10 @@ def train_DQN(
         
         if len(memory) < BATCH_SIZE:
             return
-        
         transitions = memory.sample(BATCH_SIZE)
         batch = Transition(*zip(*transitions))
-        
         next_states = torch.cat([s for s in batch.next_state
                                                     if s is not None])
-
         state_batch = torch.cat(batch.state)
         action_batch = torch.cat(batch.action)
         reward_batch = torch.cat(batch.reward)
@@ -145,14 +147,11 @@ def train_DQN(
         state_action_values = policy_net(state_batch).gather(1, action_batch)
 
         next_state_values = torch.zeros(BATCH_SIZE, device=device)
-        
         with torch.no_grad():
             next_state_values = target_net(next_states).max(1).values
         
         next_states = torch.cat([s for s in batch.next_state])
-        
         expected_state_action_values = (next_state_values * GAMMA) + reward_batch
-        
         # Compute L2 loss
         criterion = nn.MSELoss()
         loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
@@ -164,11 +163,6 @@ def train_DQN(
         torch.nn.utils.clip_grad_value_(policy_net.parameters(), 100)
         optimizer.step()
         
-    start_episode = 0
-    if save:
-        start_episode = load_latest_model(policy_net, model_path)
-        target_net.load_state_dict(policy_net.state_dict())
-        
     
         
     for i_episode in range(start_episode, start_episode + num_episodes):
@@ -176,6 +170,7 @@ def train_DQN(
         state = env.reset()
         
         state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
+       
         
         for t in env.decision_epochs:
             

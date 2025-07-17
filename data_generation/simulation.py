@@ -132,6 +132,7 @@ class SimulationUtils:
         unassigned = [
             i for i, o in enumerate(active_orders) if o[4] is None and o[0] <= t < o[2]
         ]
+        
         # Create a list of available couriers with their indices and shift times
         available_couriers = [
             (i, start, end)
@@ -217,32 +218,38 @@ class SimulationUtils:
             (t + config.delta, t + config.delta + c * 60) for c in new_couriers
         ]
         # Iterate through all orders to check for potential losses
+        
         for i, o in enumerate(active_orders):
             # Skip orders that are already assigned (not eligible for loss)
+            
             if o[4] is not None:
                 continue
             # Calculate the earliest possible pickup time for the order
             # max(r_o, t + s_p) accounts for the order’s ready time and courier travel to pickup
-            pickup_time = max(o[1], t + config.s_p)
+            pickup_time = max(o[1], t + config.s_p)   # 如果骑手从现在出发，到s_p时间后，最迟开始取的时间
             # Check if the order becomes ready in the interval [t, t_next]
             # and cannot be delivered by its due time (d_o)
             # Delivery requires s_p + t_travel + s_d = 28 minutes
             if (
-                t <= pickup_time <= t_next
+                t <= pickup_time <= t_next     # 如果取的时间在这个时间范围内，并且从现在开始取的话将超时的订单
                 and pickup_time + config.s_p + config.t_travel + config.s_d > o[2]
             ):
                 # Initialize flag to check if the order can be assigned to any courier
                 can_assign = False
                 # Check if any courier (current or new) has a shift that covers the delivery
-                for c_start, c_end in temp_couriers:
+                for c_start, c_end in temp_couriers:  # 将目前所有的骑手，判断如果这个骑手的结束时间，还来的及取的话，就让他为true
                     # Ensure the courier’s shift extends to cover pickup + travel + dropoff
                     if pickup_time + config.t_travel + config.s_d <= c_end:
+                        # 检查所有骑手，如果有骑手的结束时间比这个取货时间延后的话，就可以取，但问题是，肯定有骑手
+                        # 此时是不是应该判断
                         # If a courier is available, the order can be assigned
                         can_assign = True
                         # Break to avoid checking further couriers
-                        break
+                        break  
                 # If no courier can deliver the order on time, increment the lost counter
                 if not can_assign:
+                    
                     lost += 1
         # Return the total number of lost orders for the reward calculation
+        
         return lost

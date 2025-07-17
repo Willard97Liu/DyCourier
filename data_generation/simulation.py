@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from typing import List, Tuple, Dict
-
+from dataclasses import field
 
 @dataclass
 class SimulationConfig:
@@ -54,29 +54,32 @@ class SimulationConfig:
     # State vector parameters for computing Theta1, Theta2, Theta3, Theta4
     # Defines time windows and weights for state components (e.g., k1 = 120 minutes for courier changes)
     # None by default, initialized in __post_init__
-    state_params: Dict[str, Tuple[int, int]] = None
+    state_params: Dict[str, int] = field(default_factory=lambda: {
+        "k1": 10,
+        "k2": 15,
+        "k3": 20,
+    })
 
     def __post_init__(self):
-        """Initializes default values for optional parameters after instantiation.
+        """Initializes default values for optional parameters after instantiation."""
+        
+        # Set default courier types
+        if self.C is None:
+            self.C = [1, 1.5]
+        
+        # Set default courier costs
+        if self.K_c is None:
+            self.K_c = {1: -0.2, 1.5: -0.25}
 
-        Sets default values for courier types (C), courier costs (K_c), and state parameters
-        if not provided during instantiation. Ensures the simulation uses consistent settings
-        as specified in the paper (page 15) for reproducibility and alignment with the MDP.
-        """
-        # Set default courier types if not provided: 1-hour and 1.5-hour shifts
-        # Matches the paper’s specification of two courier types
-        self.C = [1, 1.5] if self.C is None else self.C
-        # Set default courier costs if not provided: -0.2 for 1-hour, -0.25 for 1.5-hour
-        # Negative values penalize adding couriers in the reward function
-        self.K_c = {1: -0.2, 1.5: -0.25} if self.K_c is None else self.K_c
-        # Set default state parameters if not provided
-        # j1, j2, j3: weights (set to 1); k1, k2, k3: time windows (120, 30, 40 minutes)
-        # Used for computing Theta1 (courier changes), Theta2 (recent orders), Theta3/Theta4 (late orders)
-        self.state_params = (
-            {"j1": 1, "k1": 120, "j2": 1, "k2": 30, "j3": 1, "k3": 40}
-            if self.state_params is None
-            else self.state_params
-        )
+        # Ensure all expected keys exist in state_params
+        default_state_params = {
+            "j1": 1, "k1": 120,
+            "j2": 1, "k2": 30,
+            "j3": 1, "k3": 40
+        }
+
+        for key, value in default_state_params.items():
+            self.state_params.setdefault(key, value)
 
 
 class SimulationUtils:

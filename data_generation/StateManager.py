@@ -16,7 +16,7 @@ class StateManager:
         """Computes the 7-dimensional state vector (s_t^7) at time t."""
         time_remaining = self.config.H - t
         q_couriers = courier_scheduler.get_active_couriers(t)
-        q_orders = len([o for o in active_orders if o[4] is None and o[1] <= t < o[2]])
+        q_orders = len([o for o in active_orders if o[4] is None and o[0] <= t < o[2]])
         Theta1 = courier_scheduler.get_courier_changes(
             t, self.config.state_params["k1"]
         )
@@ -32,6 +32,7 @@ class StateManager:
             and max(r_o, t + self.config.s_p) + self.config.t_travel + self.config.s_d
             > d_o
         )
+        
         Theta4 = (
             np.mean(
                 [

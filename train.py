@@ -1,6 +1,6 @@
 from tqdm import tqdm
 import numpy as np
-from methods.agent import RLAgent
+from methods.agent import DQNAgent
 from envs.envs import DynamicQVRPEnv
 from data_generation.simulation import SimulationConfig
 
@@ -9,8 +9,9 @@ def train_agents(
 ):
     config = SimulationConfig()
     env = DynamicQVRPEnv(config)
-    agent = RLAgent(env, algo='DQN',**agent_configs)
-    agent.train(episodes=15)
+    hidden_layers = [1024, 1024, 1024]
+    agent = DQNAgent(env, hidden_layers, **agent_configs)
+    agent.train(episodes=20)
     
     
 if __name__ == "__main__":

@@ -1,57 +1,26 @@
 import numpy as np
-from copy import deepcopy
-
 import math
 import random
 from collections import namedtuple, deque
 from itertools import count
-
-import torch
 import torch.nn as nn
+import torch
 import torch.optim as optim
+from methods.ML.model import NN
+from copy import deepcopy
 
 import sys
 import os
 from pathlib import Path
+from glob import glob
 path = Path(os.path.dirname(__file__))
 sys.path.insert(1, str(path.parent.absolute()))
 
+result_path = path.parent.parent  # 表示当前脚本的上上一层目录
+results_dir = result_path / "results"
+results_dir.mkdir(parents=True, exist_ok=True)
 
 
-results_dir = Path("results")
-results_dir.mkdir(parents=True, exist_ok=True)  # 如果不存在就创建
-
-
-
-class NN(nn.Module):#(BaseFeaturesExtractor):
-
-    def __init__(self, 
-                #  observation_space: spaces.Box, 
-                 n_observation, 
-                 hidden_layers = [512, 512, 256],
-                 n_actions: int = 1):
-        super().__init__()
-        hidden = deepcopy(hidden_layers)
-        hidden.insert(0, n_observation)
-        layers = []
-        for l in range(len(hidden)-1):
-            layers += [
-                nn.Linear(hidden[l], hidden[l+1]),
-                nn.ReLU()
-            ]
-        layers += [
-            nn.Linear(hidden[-1], n_actions),
-            # nn.Sigmoid()
-            # nn.Softmax()
-        ]
-
-        self.linear = nn.Sequential(
-            *layers
-        )
-
-    def forward(self, state: torch.Tensor) -> torch.Tensor:
-        return self.linear(state)
-    
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
 
@@ -86,47 +55,34 @@ class ReplayMemory(object):
     def __len__(self):
         return len(self.memory)
     
-class DQN(nn.Module):
-
-    def __init__(self, 
-                 n_observation, 
-                 hidden_layers = [512, 512, 256],
-                 n_actions: int = 2):
-        
-        super().__init__()
-        
-        hidden_layers.insert(0, n_observation)
-        layers = []
-        for l in range(len(hidden_layers)-1):
-            layers += [
-                nn.Linear(hidden_layers[l], hidden_layers[l+1]),
-                nn.ReLU()
-            ]
-            
-        layers += [
-            nn.Linear(hidden_layers[-1], n_actions),
-        ]
-
-        self.linear = nn.Sequential(
-            *layers
-        )
-
-    def forward(self, observations: torch.Tensor) -> torch.Tensor:
-        return self.linear(observations)
+    
+def load_latest_model(policy_net, model_path_prefix):
+    model_files = sorted(
+        glob(str(results_dir / f"{model_path_prefix}_ep*.pt")),
+        key=lambda x: int(x.split("_ep")[-1].split(".pt")[0]),
+        reverse=True,
+    )
+    if model_files:
+        latest_file = model_files[0]
+        print(f"Loading model: {latest_file}")
+        policy_net.load_state_dict(torch.load(latest_file))
+        return int(latest_file.split("_ep")[-1].split(".pt")[0])
+    return 0
     
 
 def train_DQN(
     env,
+    hidden_layers,
+    num_episodes = 20,
+    
     LR = 1e-4,
     BATCH_SIZE = 64,
-    hidden_layers = [1024, 1024, 1024],
-    num_episodes = 20,
     update_target_every = 100,
     TAU = 0.01,
     GAMMA = 0.99,
     eval_interval = 2,
     save = True,
-    model_path = 'DQN',
+    model_path = 'model_DQN',
 ):
     
     device = torch.device(
@@ -207,10 +163,15 @@ def train_DQN(
         loss.backward()
         torch.nn.utils.clip_grad_value_(policy_net.parameters(), 100)
         optimizer.step()
-    
+        
+    start_episode = 0
+    if save:
+        start_episode = load_latest_model(policy_net, model_path)
+        target_net.load_state_dict(policy_net.state_dict())
+        
     
         
-    for i_episode in range(num_episodes):
+    for i_episode in range(start_episode, start_episode + num_episodes):
         
         state = env.reset()
         
@@ -236,38 +197,28 @@ def train_DQN(
             
             # # Perform one step of the optimization (on the policy network)
             optimize_model()
-            
-            target_net_state_dict = target_net.state_dict()
-            policy_net_state_dict = policy_net.state_dict()
-            
-            if i_episode%update_target_every == 0:
-                # Periodic hard update of the target network's weights
-                for key in policy_net_state_dict:
-                    target_net_state_dict[key] = policy_net_state_dict[key]
-                target_net.load_state_dict(target_net_state_dict)
-            else:
-                # Soft update of the target network's weights
-                # θ′ ← τ θ + (1 −τ )θ′
-                for key in policy_net_state_dict:
-                    target_net_state_dict[key] = policy_net_state_dict[key]*TAU + target_net_state_dict[key]*(1-TAU)
-                target_net.load_state_dict(target_net_state_dict)
-            
-            
+        
+           
             if t == 450 and (i_episode + 1) % eval_interval == 0:
-                # test_r = eval()
-                # mean_r = test_r.mean()
-                # print(f"{i_episode + 1} : {mean_r:.3f}")
-                
-                # if mean_r > best_r:
-                #     best_r = mean_r
-                #     print(f"best! mean rewards: {best_r:.3f}")
                 if save:
-                    # print(f"dkfjdkfjfdk")
-                    torch.save(policy_net.state_dict(), results_dir/f'model_{model_path}')
-                    # print(f"Model saved to: {os.path.abspath(model_path)}")
+                    torch.save(policy_net.state_dict(), results_dir / f'{model_path}_ep{i_episode+1}.pt')
 
-                    
                 
+        target_net_state_dict = target_net.state_dict()
+        policy_net_state_dict = policy_net.state_dict()
+        
+        if i_episode%update_target_every == 0:
+            # Periodic hard update of the target network's weights
+            for key in policy_net_state_dict:
+                target_net_state_dict[key] = policy_net_state_dict[key]
+            target_net.load_state_dict(target_net_state_dict)
+        else:
+            # Soft update of the target network's weights
+            # θ′ ← τ θ + (1 −τ )θ′
+            for key in policy_net_state_dict:
+                target_net_state_dict[key] = policy_net_state_dict[key]*TAU + target_net_state_dict[key]*(1-TAU)
+            target_net.load_state_dict(target_net_state_dict)
+            
     return 
     
                 

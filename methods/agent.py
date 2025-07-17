@@ -6,12 +6,7 @@ from copy import deepcopy
 import torch
 from torch import nn
 
-
 from methods.ML.RL import train_DQN, NN
-
-from gymnasium import Env
-
-
 
 
 
@@ -19,7 +14,7 @@ class Agent:
     def __init__(self, env):
         self.env = env
     
-    def act(self, x, *args, **kwargs):
+    def act(self, **kwargs):
         return int(self.env.action_space.sample())
     
     def run(self, n):
@@ -58,27 +53,28 @@ class DQNAgent(Agent):
     def __init__(
         self,
         env,
-        hidden_layers = [1024, 1024, 1024],
-        algo = 'DQN', 
+        hidden_layers,
+        test = False,
         **kwargs
         ):
         super().__init__(env, **kwargs)
         
-        self.model = NN(
-            7,
-            hidden_layers,
-            6
-        )
+        if test:
+            self.model = NN(
+                7,
+                hidden_layers,
+                6
+            )
+            
+        self.env =env
         self.hidden_layers = hidden_layers
         
         
-    def train(self, episodes = 1000, **kwargs):
+    def train(self, episodes, **kwargs):
         
         train_DQN(
-            self.env,
+            env = self.env,
             hidden_layers = self.hidden_layers,
             num_episodes = episodes
         )
         
-
-RLAgent = DQNAgent

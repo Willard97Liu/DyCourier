@@ -32,7 +32,7 @@ class StateManager:
             and max(r_o, t + self.config.s_p) + self.config.t_travel + self.config.s_d
             > d_o
         )
-        
+
         Theta4 = (
             np.mean(
                 [

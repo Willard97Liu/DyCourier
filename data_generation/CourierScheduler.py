@@ -2,6 +2,7 @@ import numpy as np
 from data_generation.simulation import SimulationConfig
 from typing import List, Tuple
 
+
 # Courier Scheduling
 class CourierScheduler:
     """Manages base and on-demand courier schedules for the rapid delivery system.

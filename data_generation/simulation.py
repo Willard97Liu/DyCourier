@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import List, Tuple, Dict
 from dataclasses import field
 
+
 @dataclass
 class SimulationConfig:
     """Stores simulation parameters based on page 15 of the paper 'Dynamic Courier Capacity Acquisition in Rapid Delivery Systems: A Deep Q-Learning Approach.'
@@ -54,28 +55,33 @@ class SimulationConfig:
     # State vector parameters for computing Theta1, Theta2, Theta3, Theta4
     # Defines time windows and weights for state components (e.g., k1 = 120 minutes for courier changes)
     # None by default, initialized in __post_init__
-    state_params: Dict[str, int] = field(default_factory=lambda: {
-        "k1": 10,
-        "k2": 15,
-        "k3": 20,
-    })
+    state_params: Dict[str, int] = field(
+        default_factory=lambda: {
+            "k1": 10,
+            "k2": 15,
+            "k3": 20,
+        }
+    )
 
     def __post_init__(self):
         """Initializes default values for optional parameters after instantiation."""
-        
+
         # Set default courier types
         if self.C is None:
             self.C = [1, 1.5]
-        
+
         # Set default courier costs
         if self.K_c is None:
             self.K_c = {1: -0.2, 1.5: -0.25}
 
         # Ensure all expected keys exist in state_params
         default_state_params = {
-            "j1": 1, "k1": 120,
-            "j2": 1, "k2": 30,
-            "j3": 1, "k3": 40
+            "j1": 1,
+            "k1": 120,
+            "j2": 1,
+            "k2": 30,
+            "j3": 1,
+            "k3": 40,
         }
 
         for key, value in default_state_params.items():
@@ -132,10 +138,9 @@ class SimulationUtils:
             Updated list of orders with new assignments (same tuple structure).
         """
         # Find indices of unassigned orders placed by time t (t_o <= t) and not past due (t < d_o)
-       
-       
+
         # Check the time period of order
-        # It could be simplfied 
+        # It could be simplfied
 
         unassigned = [
             i for i, o in enumerate(active_orders) if o[4] is None and o[0] <= t < o[2]
@@ -229,7 +234,7 @@ class SimulationUtils:
             # Skip orders that are already assigned (not eligible for loss)
             if o[4] is not None:
                 continue
-            # Assign courier 
+            # Assign courier
             # Calculate the earliest possible pickup time for the order
             # max(r_o, t + s_p) accounts for the order’s ready time and courier travel to pickup
             pickup_time = max(o[1], t + config.s_p)
@@ -253,6 +258,7 @@ class SimulationUtils:
                         break
                 # If no courier can deliver the order on time, increment the lost counter
                 if not can_assign:
+
                     lost += 1
         # Return the total number of lost orders for the reward calculation
         return lost

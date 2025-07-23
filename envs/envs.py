@@ -13,6 +13,8 @@ class DynamicQVRPEnv(gym.Env):
     def __init__(self, config: SimulationConfig):
         
         self.config = config
+        
+        self.mode = "train"
         # Initialize order generator to create orders with placement times and locations
         self.order_generator = OrderGenerator(config)
         # Initialize courier scheduler to manage base and on-demand couriers
@@ -22,19 +24,28 @@ class DynamicQVRPEnv(gym.Env):
         
         self.utils = SimulationUtils()
         
+        self.active_couriers = []
+        
+        self.active_orders = []
+        
         self.decision_epochs = np.arange(
             0, config.H0 + config.decision_interval, config.decision_interval
         )
+        
+    def set_mode(self, mode: str):
+        assert mode in ["train", "test"], f"Unknown mode: {mode}"
+        self.mode = mode
         
     
     def reset(self):
 
         self.active_couriers = self.courier_scheduler.base_schedule[:]
         
-        self.active_orders = [
-            (t, r, d, loc, None, None)
-            for t, r, d, loc in self.order_generator.get_orders()
-        ]
+        if self.mode == "train":
+            self.active_orders = [
+                (t, r, d, loc, None, None)
+                for t, r, d, loc in self.order_generator.get_orders()
+            ]
         
         t = 0
         

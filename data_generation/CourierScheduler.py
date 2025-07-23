@@ -1,6 +1,7 @@
 import numpy as np
 from data_generation.simulation import SimulationConfig
 from typing import List, Tuple
+import pickle
 
 
 # Courier Scheduling
@@ -24,9 +25,16 @@ class CourierScheduler:
         # Store configuration for access to parameters like courier ranges and delta
         self.config = config
         # Generate base courier schedule (pre-scheduled couriers)
+        self.mode = "train"
+        
         self.base_schedule = self._generate_base_schedule()
         # Initialize empty list for on-demand couriers added during simulation
         self.on_demand_schedule = []
+        
+        
+    def set_mode(self, mode: str):
+        assert mode in ["train", "test"], f"Unknown mode: {mode}"
+        self.mode = mode
 
     def _generate_base_schedule(self) -> List[Tuple[float, float]]:
         """Generates the base courier schedule according to the paper's settings.
@@ -40,6 +48,13 @@ class CourierScheduler:
             List of tuples (start_time, courier_type), where start_time is in minutes and
             courier_type is 1 (1-hour) or 1.5 (1.5-hour).
         """
+        if self.mode == "test":
+            # 设定固定随机种子，确保每次 test 都生成相同的 schedule
+            rng = np.random.default_rng(seed=42)
+        else:
+            rng = np.random.default_rng()
+            
+            
         # Randomly select number of 1-hour couriers (D1 ~ U[20,30])
         D1 = np.random.randint(self.config.D1_range[0], self.config.D1_range[1] + 1)
         # Randomly select number of 1.5-hour couriers (D1.5 ~ U[10,20])
@@ -65,6 +80,30 @@ class CourierScheduler:
                 [(max(0, t + np.random.randint(-20, 21)), 1.5) for _ in range(count)]
             )
         return schedule
+    
+    
+    # def generate_test_schedules(config: SimulationConfig, seed_list: List[int], save_path: str):
+    #     test_schedules = []
+
+    #     for seed in seed_list:
+    #         rng = np.random.default_rng(seed)
+    #         D1 = rng.integers(config.D1_range[0], config.D1_range[1] + 1)
+    #         D1_5 = rng.integers(config.D1_5_range[0], config.D1_5_range[1] + 1)
+    #         schedule = []
+
+    #         for t in [60, 120, 270, 330]:
+    #             count = (D1 // 6) if t in [60, 120] else (D1 // 3)
+    #             schedule.extend([(max(0, t + rng.integers(-20, 21)), 1) for _ in range(count)])
+    #         for t in [0, 120, 240, 360]:
+    #             count = D1_5 // 6
+    #             schedule.extend([(max(0, t + rng.integers(-20, 21)), 1.5) for _ in range(count)])
+
+    #         test_schedules.append(schedule)
+            
+    #     with open(save_path, "wb") as f:
+    #         pickle.dump(test_schedules, f)
+
+    #     print(f"✅ Saved {len(seed_list)} test schedules to {save_path}")
 
     def add_on_demand_couriers(self, t: float, action: Tuple[int, int]) -> None:
         """Adds on-demand couriers to the schedule based on the action taken.

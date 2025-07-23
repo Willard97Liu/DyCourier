@@ -4,7 +4,10 @@ import multiprocess as mp
 from copy import deepcopy
 
 import torch
-from torch import nn
+from pathlib import Path
+
+
+import pickle
 
 from methods.ML.RL import train_DQN, NN
 
@@ -17,14 +20,37 @@ class Agent:
     def act(self, **kwargs):
         return int(self.env.action_space.sample())
     
-    def run(self, n):
+    def test(self, n):
         
         ACTIONS = [
             (0, 0), (1, 0), (0, 1),
             (2, 0), (1, 1), (0, 2)
         ]
         episode_rewards = np.zeros(n)
+        
+        
+        BASE_DIR = Path(__file__).resolve().parent.parent
+        
+        # 骑手的测试数据
+        courier_PATH = BASE_DIR / "data_generation" / "test_data" / "base_courier.pkl"
+        with open(courier_PATH, "rb") as f:
+            base_courier_data = pickle.load(f)
+        # 订单的测试数据
+        ORDER_TEST_PATH = BASE_DIR / "data_generation" / "test_data" / "base_orders.pkl"
+        with open(ORDER_TEST_PATH, "rb") as f:
+            base_order_data = pickle.load(f)
+            
+        
         for i in tqdm(range(n), desc="Evaluating DQN Agent"):
+            self.env.set_mode("test")
+        
+            self.env.courier_scheduler.base_schedule = base_courier_data[i].copy()
+            
+            self.env.active_orders = [
+                (float(t), float(r), float(d), int(loc), None, None)
+                for t, r, d, loc in base_order_data[i]
+            ]
+            
             state = self.env.reset()
             episode_reward = 0
 

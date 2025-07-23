@@ -147,10 +147,11 @@ def train_DQN(
         state_action_values = policy_net(state_batch).gather(1, action_batch)
 
         next_state_values = torch.zeros(BATCH_SIZE, device=device)
+        
+        
         with torch.no_grad():
             next_state_values = target_net(next_states).max(1).values
         
-        next_states = torch.cat([s for s in batch.next_state])
         expected_state_action_values = (next_state_values * GAMMA) + reward_batch
         # Compute L2 loss
         criterion = nn.MSELoss()

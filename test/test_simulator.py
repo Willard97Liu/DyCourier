@@ -20,14 +20,27 @@ def test_run__episode():
     order_generator = OrderGenerator(config)
     utils = SimulationUtils()
     state_manager = StateManager(config)
-    active_orders = [
-        (t, r, d, loc, None, None) for t, r, d, loc in order_generator.get_orders()
-    ]
     order_before_assign = []
     order_after_assign = []
     current_orders_rows = []
     all_state_rows = []
     all_courier_rows = []
+    active_orders = [
+        (t, r, d, loc, None, None) for t, r, d, loc in order_generator.get_orders()
+    ]
+    # Log raw active orders
+    for o in active_orders:
+        order_before_assign.append(
+            {
+                "release_time": o[0],
+                "ready_time": o[1],
+                "deadline": o[2],
+                "location": o[3],
+                "assigned_courier": o[4],
+                "pickup_time": o[5],
+            }
+        )
+
 
     decision_epochs = np.arange(
         0, config.H0 + config.decision_interval, config.decision_interval
@@ -41,20 +54,9 @@ def test_run__episode():
         # print('time: ',t, "Active couriers", active_couriers)
         # Log courier data
         for s, e in active_couriers:
-            all_courier_rows.append({"start": s, "end": e})
-
-        # Log raw active orders
-        for o in active_orders:
-            order_before_assign.append(
-                {
-                    "release_time": o[0],
-                    "ready_time": o[1],
-                    "deadline": o[2],
-                    "location": o[3],
-                    "assigned_courier": o[4],
-                    "pickup_time": o[5],
-                }
-            )
+            all_courier_rows.append({"time": t, "start": s, "end": e})
+        courier_number = courier_scheduler.get_active_couriers(t)
+        print("number of courier:", courier_number)
 
         current_orders = [
             o
@@ -80,6 +82,7 @@ def test_run__episode():
         for o in active_orders:
             order_after_assign.append(
                 {
+                    "time": t,
                     "release_time": o[0],
                     "ready_time": o[1],
                     "deadline": o[2],

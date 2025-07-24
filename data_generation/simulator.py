@@ -79,96 +79,84 @@ class Simulator:
             - reward: Float (K_lost * n_lost + sum of courier costs)
             - next_state: 7 elements (same as state, for t_next)
         """
-        # Initialize active couriers with the base schedule from CourierScheduler
+
         active_couriers = self.courier_scheduler.base_schedule[:]
-        # Initialize active orders with all orders generated for the episode
         active_orders = [
             (t, r, d, loc, None, None)
             for t, r, d, loc in self.order_generator.get_orders()
         ]
-        # Initialize list for DQN training tuples: [state (7), action (2), reward (1), next_state (7)]
         data = []
 
-        # Iterate over decision epochs (t = 0, 5, 10, ..., 450)
         for t in self.decision_epochs:
-            # Remove couriers whose shifts are not active at t
-            active_couriers = [
-                (start, end) for start, end in active_couriers if start <= t < end
+            # Filter active couriers
+            active_couriers = [(s, e) for s, e in active_couriers if s <= t < e]
+
+            # Filter and assign only current orders
+            # 这个暂时还有问题
+            current_orders = [
+                o
+                for o in active_orders
+                if o[0] <= t and (o[4] is None or t < o[5]) and t < o[2]
             ]
-            # Assign orders greedily using SimulationUtils.assign_orders
             active_orders = self.utils.assign_orders(
                 t, active_orders, active_couriers, self.config
             )
-            # Filter unassigned orders (assigned field is None)
-            unassigned_orders = [o for o in active_orders if o[4] is None]
-            # Filter assigned orders that have not yet been delivered (t < delivered_time)
-            assigned_but_have_not_delivered = [
-                o for o in active_orders if o[4] is not None and t < o[5]
-            ]
-            # Active orders are the union of unassigned and assigned-but-not-delivered orders
-            active_orders = unassigned_orders + assigned_but_have_not_delivered
 
-            # Compute state vector (s_t^7) at time t
+            # Compute current state
             state = self.state_manager.compute_state(
                 t, self.courier_scheduler, active_orders
             )
-            # Select random action for exploration: (a1, a1_5) where a1, a1_5 in {0, 1, 2}
+
+            # Select action
             action = random.choice(self.action_space)
-            # Unpack action into number of 1-hour and 1.5-hour couriers
             a1, a1_5 = action
-            # Create list of new courier types (e.g., [1, 1, 1.5] for a1=2, a1_5=1)
             new_couriers = [1] * a1 + [1.5] * a1_5
-            # Calculate next epoch time (t + 5, capped at H0=450)
+
+            # Compute t_next and reward
             t_next = min(t + self.config.decision_interval, self.config.H0)
-            # Count lost orders between t and t_next
             n_lost = self.utils.get_lost_orders(
                 t, t_next, active_orders, active_couriers, new_couriers, self.config
             )
-            # Compute reward
             reward = self.config.K_lost * n_lost + sum(
                 self.config.K_c[c] for c in new_couriers
             )
 
-            # Add on-demand couriers starting at t + delta (5 minutes)
+            # Add new on-demand couriers
             self.courier_scheduler.add_on_demand_couriers(t, action)
-            # Add new couriers to active list
             active_couriers.extend(
                 [
                     (t + self.config.delta, t + self.config.delta + c * 60)
                     for c in new_couriers
                 ]
             )
-            # Re-assign orders with updated courier pool
+
+            # Re-assign with updated courier pool
+            # 问题就出在current_orders这里
+            current_orders = [
+                o
+                for o in active_orders
+                if o[0] <= t and (o[4] is None or t < o[5]) and t < o[2]
+            ]
             active_orders = self.utils.assign_orders(
                 t, active_orders, active_couriers, self.config
             )
-            # Update active orders for next epoch: keep unassigned or not-yet-delivered orders not past due
-            unassigned_orders = [
-                o for o in active_orders if o[4] is None and t_next < o[2]
-            ]
-            assigned_but_have_not_delivered = [
+
+            # Filter orders for next decision epoch
+            active_orders = [
                 o
                 for o in active_orders
-                if o[4] is not None and t < o[5] and t_next < o[2]
+                if t_next < o[2] and (o[4] is None or t_next < o[5])
             ]
-            active_orders = unassigned_orders + assigned_but_have_not_delivered
 
-            # Compute next state at t_next
+            # Compute next state
             next_state = self.state_manager.compute_state(
                 t_next, self.courier_scheduler, active_orders
             )
-            # Store experience tuple
+
+            # Store experience
             data.append(state + list(action) + [reward] + next_state)
 
-            # Update couriers for next epoch
-            active_couriers = [
-                (start, end) for start, end in active_couriers if start <= t_next < end
-            ]
+            # Update courier pool
+            active_couriers = [(s, e) for s, e in active_couriers if s <= t_next < e]
 
-        # Return experience tuples for DQN training
         return data
-
-
-# The reward problem, sum on the overall time interval or just one time interval?
-# The threshold
-# Deep learning in transportation science

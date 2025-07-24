@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Tuple, Dict
 from dataclasses import field
+from collections import defaultdict
 
 
 @dataclass
@@ -18,7 +19,7 @@ class SimulationConfig:
     H0: float = 450
     # Number of pickup locations (N_pickup = 16, representing restaurants or stores)
     # Each location generates orders independently, as specified in the paper
-    N_pickup: int = 16
+    N_pickup: int = 3
     # Show-up delay for on-demand couriers in minutes (delta = 5)
     # On-demand couriers added at time t start their shift at t + delta
     delta: float = 5
@@ -139,54 +140,56 @@ class SimulationUtils:
         """
         # Find indices of unassigned orders placed by time t (t_o <= t) and not past due (t < d_o)
 
-        # Check the time period of order
-        # It could be simplfied
+        # Compute busy-until time per courier using hashing map
+        courier_busy_until = defaultdict(lambda: 0)
+        for o in active_orders:
+            assigned, delivered = o[4], o[5]
+            if assigned is not None and delivered is not None:
+                courier_busy_until[assigned] = max(
+                    courier_busy_until[assigned], delivered
+                )
 
-        unassigned = [
-            i for i, o in enumerate(active_orders) if o[4] is None and o[0] <= t < o[2]
-        ]
-        # Create a list of available couriers with their indices and shift times
+        # Available couriers: shift is active and not currently busy
         available_couriers = [
             (i, start, end)
             for i, (start, end) in enumerate(active_couriers)
-            if start <= t < end
+            if start <= t < end and courier_busy_until[i] <= t
         ]
-        # Collect indices of couriers already assigned to orders
-        assigned_courier_indices = {o[4] for o in active_orders if o[4] is not None}
-        # Filter out already-assigned couriers
-        available_couriers = [
-            (i, start, end)
-            for i, start, end in available_couriers
-            if i not in assigned_courier_indices
-        ]
-        # Create a copy of active_orders to modify
+
+        # Copy active_orders to update assignments
         updated_orders = active_orders[:]
-        # Sort unassigned order indices by due time (d_o)
+
+        # Sort unassigned and not-past-due orders by due time
+        unassigned = [
+            i for i, o in enumerate(active_orders) if o[4] is None and o[0] <= t < o[2]
+        ]
+
         for order_idx in sorted(unassigned, key=lambda i: active_orders[i][2]):
             order = active_orders[order_idx]
-            # Calculate earliest pickup time
             pickup_time = max(order[1], t + config.s_p)
-            # Check if order can be delivered before due time
-            if pickup_time + config.t_travel + config.s_d <= order[2]:
-                for c_idx, c_start, c_end in available_couriers:
-                    # Ensure courier’s shift covers entire delivery
-                    if pickup_time + config.t_travel + config.s_d <= c_end:
-                        # Calculate delivery time
-                        delivered_time = pickup_time + config.t_travel + config.s_d
-                        # Assign courier to order
-                        updated_orders[order_idx] = (
-                            order[0],  # t_o
-                            order[1],  # r_o
-                            order[2],  # d_o
-                            order[3],  # loc
-                            c_idx,  # assigned
-                            delivered_time,
-                        )
-                        # Remove courier from available list
-                        available_couriers = [
-                            c for c in available_couriers if c[0] != c_idx
-                        ]
-                        break
+            delivery_time = pickup_time + config.t_travel + config.s_d
+
+            if delivery_time > order[2]:
+                continue  # too late to deliver
+
+            for c_idx, c_start, c_end in available_couriers:
+                if delivery_time <= c_end:
+                    updated_orders[order_idx] = (
+                        order[0],  # t_o
+                        order[1],  # r_o
+                        order[2],  # d_o
+                        order[3],  # loc
+                        c_idx,  # assigned courier
+                        delivery_time,
+                    )
+                    # Mark this courier as busy
+                    courier_busy_until[c_idx] = delivery_time
+                    # Remove from availability
+                    available_couriers = [
+                        (i, s, e) for (i, s, e) in available_couriers if i != c_idx
+                    ]
+                    break
+
         return updated_orders
 
     @staticmethod

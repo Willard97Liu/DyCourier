@@ -40,30 +40,28 @@ class CourierScheduler:
             List of tuples (start_time, courier_type), where start_time is in minutes and
             courier_type is 1 (1-hour) or 1.5 (1.5-hour).
         """
-        # Randomly select number of 1-hour couriers (D1 ~ U[20,30])
+
         D1 = np.random.randint(self.config.D1_range[0], self.config.D1_range[1] + 1)
-        # Randomly select number of 1.5-hour couriers (D1.5 ~ U[10,20])
         D1_5 = np.random.randint(
             self.config.D1_5_range[0], self.config.D1_5_range[1] + 1
         )
-        # Initialize empty schedule
+
         schedule = []
-        # Add 1-hour couriers at start times t=60, 120, 270, 330 minutes
+
+        # 1-hour couriers at times t = 60, 120, 270, 330
         for t in [60, 120, 270, 330]:
-            # Allocate D1/6 couriers for t=60, 120; D1/3 for t=270, 330 (per paper's settings)
             count = (D1 // 6) if t in [60, 120] else (D1 // 3)
-            # Add couriers with perturbed start times in [-20, 20] minutes, ensuring t >= 0
-            schedule.extend(
-                [(max(0, t + np.random.randint(-20, 21)), 1) for _ in range(count)]
-            )
-        # Add 1.5-hour couriers at start times t=0, 120, 240, 360 minutes
+            for _ in range(count):
+                start = max(0, t + np.random.randint(-20, 21))
+                schedule.append((start, start + 60))  # 1 hour
+
+        # 1.5-hour couriers at times t = 0, 120, 240, 360
         for t in [0, 120, 240, 360]:
-            # Allocate D1.5/6 couriers for each start time
             count = D1_5 // 6
-            # Add couriers with perturbed start times in [-20, 20] minutes, ensuring t >= 0
-            schedule.extend(
-                [(max(0, t + np.random.randint(-20, 21)), 1.5) for _ in range(count)]
-            )
+            for _ in range(count):
+                start = max(0, t + np.random.randint(-20, 21))
+                schedule.append((start, start + 90))  # 1.5 hours
+
         return schedule
 
     def add_on_demand_couriers(self, t: float, action: Tuple[int, int]) -> None:

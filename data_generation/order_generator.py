@@ -25,7 +25,7 @@ class OrderGenerator:
         # Store configuration for access to parameters like N_pickup and H0
         self.config = config
         # Generate number of orders per pickup location, n_d ~ U[10,20], for N_pickup locations
-        self.orders_per_location = np.random.randint(10, 21, config.N_pickup)
+        self.orders_per_location = np.random.randint(3, 5, config.N_pickup)
         # Total number of orders across all locations
         self.total_orders = sum(self.orders_per_location)
         # Generate order placement times with lunch and dinner peaks
@@ -97,7 +97,6 @@ class OrderGenerator:
 
     def get_orders(self) -> List[Tuple[float, float, float, int]]:
         """Returns the list of generated orders.
-
         Returns:
             List of tuples, each containing (t_o, r_o, d_o, loc), where:
             - t_o: Order placement time (float, minutes).
@@ -105,6 +104,8 @@ class OrderGenerator:
             - d_o: Order due time (t_o + 40, minutes).
             - loc: Pickup location index (integer, 0 to N_pickup-1).
         """
+
+        # Filter the arrays using the mask and return the zipped result
         return list(
             zip(
                 self.order_times,

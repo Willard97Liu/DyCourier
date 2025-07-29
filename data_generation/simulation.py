@@ -88,168 +88,102 @@ class SimulationUtils:
     with travel time (t_travel=20) to limit assignments, helping maintain non-zero q_orders during
     peak periods (180–300, 360–450 minutes).
     """
-
     @staticmethod
     def assign_orders(
         t: float,
-        active_orders: List[Tuple],
-        active_couriers: List[Tuple],
+        visible_orders,
+        active_couriers: List[Tuple[float, float]],  # (start_time, end_time)
+        id_active_couriers: List[Tuple[id, float, float]],  # (id, start_time, end_time)
         config: SimulationConfig,
-    ) -> List[Tuple]:
-        """Assigns orders to available couriers greedily, prioritizing by due time.
+    ):  
+        #### 调试
+        # print(f"现在时间：{t}")
+        # for o in visible_orders:
+        #     print(f"[订单] 下单时间: {o.order_time:.1f}, 截止时间: {o.due_time:.1f}, 分配骑手: {o.assigned_courier}, 送达时间: {o.delivery_time}")
 
-        Iterates through unassigned orders placed by time t (t_o <= t) and not past due (t < d_o).
-        Assigns each order to an available courier whose shift covers the entire delivery process
-        (pickup, travel, and dropoff). Prioritizes orders by due time to minimize late deliveries,
-        following the greedy assignment strategy implied in the paper (page 15). Ensures each courier
-        handles at most one order at a time, aligning with the simulation’s one-order-per-courier
-        assumption. The inclusion of travel time (t_travel = 20 minutes) extends the delivery duration
-        to 28 minutes (s_p + t_travel + s_d), reducing assignments and increasing unassigned orders
-        (q_orders) during peak periods, addressing the q_orders=0 issue observed in previous data.
-
-        Args:
-            t: Current time in minutes (decision epoch, e.g., t = 0, 5, 10, ..., 450).
-            active_orders: List of tuples representing orders, each with:
-                - t_o: Order placement time (minutes, t_o in [0, H0]).
-                - r_o: Order ready time (t_o + 10 minutes, when order is available for pickup).
-                - d_o: Order due time (t_o + 40 minutes, latest delivery time).
-                - loc: Pickup location index (integer, 0 to N_pickup-1).
-                - assigned: Courier index (integer) or None if unassigned.
-                - delivered_time: Delivery completion time (minutes) or None if not delivered.
-            active_couriers: List of tuples representing courier shifts, each with:
-                - start: Shift start time (minutes).
-                - end: Shift end time (minutes, start + 60 or 90 for 1-hour or 1.5-hour couriers).
-            config: SimulationConfig object containing parameters:
-                - s_p: Pickup service time (4 minutes).
-                - s_d: Dropoff service time (4 minutes).
-                - t_travel: Travel time (20 minutes).
-                - Other parameters (e.g., H0, delta) for simulation consistency.
-
-        Returns:
-            Updated list of orders with new assignments (same tuple structure).
-        """
-        # Find indices of unassigned orders placed by time t (t_o <= t) and not past due (t < d_o)
-        unassigned = [
-            i for i, o in enumerate(active_orders) if o[4] is None and o[0] <= t < o[2]
-        ]
         
-        # Create a list of available couriers with their indices and shift times
+        unassigned_orders = [
+            o for o in visible_orders if o.assigned_courier is None 
+        ]
+
         available_couriers = [
-            (i, start, end)
-            for i, (start, end) in enumerate(active_couriers)
+            (cid, start, end)
+            for (cid, start, end) in id_active_couriers
             if start <= t < end
         ]
-        # Collect indices of couriers already assigned to orders
-        assigned_courier_indices = {o[4] for o in active_orders if o[4] is not None}
-        # Filter out already-assigned couriers
+    
+        ## 过滤掉正在派送订单的骑手，但是还要考虑送完订单的骑手，只要分配骑手，它的delivery_time就不为空
+        assigned_courier_indices = {
+            o.assigned_courier
+            for o in visible_orders
+            if o.assigned_courier is not None and o.delivery_time is not None and t < o.delivery_time
+        }
+
+        
+        ## 用所有骑手减去这些正在派送订单的骑手
         available_couriers = [
-            (i, start, end)
-            for i, start, end in available_couriers
-            if i not in assigned_courier_indices
+            (i, start, end) for i, start, end in available_couriers if i not in assigned_courier_indices
         ]
-        # Create a copy of active_orders to modify
-        updated_orders = active_orders[:]
-        # Sort unassigned order indices by due time (d_o)
-        for order_idx in sorted(unassigned, key=lambda i: active_orders[i][2]):
-            order = active_orders[order_idx]
-            # Calculate earliest pickup time
-            pickup_time = max(order[1], t + config.s_p)
-            # Check if order can be delivered before due time
-            if pickup_time + config.t_travel + config.s_d <= order[2]:
-                for c_idx, c_start, c_end in available_couriers:
-                    # Ensure courier’s shift covers entire delivery
-                    if pickup_time + config.t_travel + config.s_d <= c_end:
-                        # Calculate delivery time
-                        delivered_time = pickup_time + config.t_travel + config.s_d
-                        # Assign courier to order
-                        updated_orders[order_idx] = (
-                            order[0],  # t_o
-                            order[1],  # r_o
-                            order[2],  # d_o
-                            order[3],  # loc
-                            c_idx,  # assigned
-                            delivered_time,
-                        )
-                        # Remove courier from available list
+        ### 调试
+        # print("[可用骑手]:")
+        # for cid, start, end in available_couriers:
+        #     if start <= t < end:
+        #         print(f"ID={cid}, 在线时间=[{start}, {end})")
+
+        
+
+        # Step 3: 给目前未分配的订单分配骑手
+        # 计算这些订单的最早开始可以去取的时间和计算这个订单，从最早现在去取，并且送完后的这个时间
+        # 如果这个时间小于订单的due_time, 那么这个订单可以被分配，然后找这个订单是否超过车的due_time，如果没有超过
+        # 则分配这个订单，给这个订单车的编号，并且记录这个订单的理想送达时间
+        for order in sorted(unassigned_orders, key=lambda o: o.due_time):
+            pickup_time = max(order.ready_time, t + config.s_p)
+            delivery_end_time = pickup_time + config.t_travel + config.s_d
+
+            if delivery_end_time <= order.due_time:   # 这个订单理论上能够分配，就看现在有没有合适的车了
+                for idx, c_start, c_end in available_couriers:
+                    if delivery_end_time <= c_end: # 有合适的车
+                        # 分配成功
+                        order.assigned_courier = idx
+                        order.delivery_time = delivery_end_time
+                        # 在可以分配的骑手中移除该骑手
                         available_couriers = [
-                            c for c in available_couriers if c[0] != c_idx
+                            c for c in available_couriers if c[0] != idx
                         ]
-                        break
-        return updated_orders
+                        break  
+        ### 调试
+        # for o in visible_orders:
+        #     print(f"[订单] 下单时间: {o.order_time:.1f}, 截止时间: {o.due_time:.1f}, 分配骑手: {o.assigned_courier}, 送达时间: {o.delivery_time}")
+
+        
+                    
 
     @staticmethod
     def get_lost_orders(
         t: float,
-        t_next: float,
-        active_orders: List[Tuple],
-        active_couriers: List[Tuple],
-        new_couriers: List[float],
+        visible_orders,
+        active_couriers: List[Tuple[float, float]],
         config: SimulationConfig,
     ) -> int:
-        """Calculates the number of orders lost between t and t_next.
+        """Calculates the number of orders lost between t and t_next."""
 
-        Identifies unassigned orders that become ready between t and t_next (t <= pickup_time <= t_next)
-        but cannot be delivered by their due time due to insufficient courier availability or time
-        constraints. A lost order contributes to the reward penalty (K_lost * n_lost) in the MDP.
-        Incorporates travel time (t_travel = 20 minutes) for realistic delivery duration, aligning
-        with the paper’s lost order definition (page 15). The longer delivery duration may increase
-        lost orders, helping retain unassigned orders in active_orders, which increases q_orders.
-
-        Args:
-            t: Current time in minutes (start of the current decision epoch).
-            t_next: Next decision epoch time (t + decision_interval, or H0 if at the end).
-            active_orders: List of tuples (t_o, r_o, d_o, loc, assigned), same structure as assign_orders.
-            active_couriers: List of tuples (start, end) for current courier shifts.
-            new_couriers: List of courier types (1 or 1.5 hours) to be added at t + delta.
-            config: SimulationConfig object with parameters:
-                - s_p: Pickup service time (4 minutes).
-                - s_d: Dropoff service time (4 minutes).
-                - t_travel: Travel time (20 minutes).
-                - delta: Show-up delay for new couriers (5 minutes).
-
-        Returns:
-            Integer number of lost orders, used to compute the reward penalty (K_lost * n_lost).
-        """
-        # Initialize counter for lost orders
         lost = 0
-        # Create a temporary list of couriers, including current active couriers
-        # and new couriers starting at t + delta with their respective shift durations
-        temp_couriers = active_couriers + [
-            (t + config.delta, t + config.delta + c * 60) for c in new_couriers
-        ]
-        # Iterate through all orders to check for potential losses
-        
-        for i, o in enumerate(active_orders):
-            # Skip orders that are already assigned (not eligible for loss)
+
+        for o in visible_orders: # 判断这些订单哪些订单还没有被派送，并且以后不能派送
             
-            if o[4] is not None:
+            
+            if o.assigned_courier is not None:
                 continue
-            # Calculate the earliest possible pickup time for the order
-            # max(r_o, t + s_p) accounts for the order’s ready time and courier travel to pickup
-            pickup_time = max(o[1], t + config.s_p)   # 如果骑手从现在出发，到s_p时间后，最迟开始取的时间
-            # Check if the order becomes ready in the interval [t, t_next]
-            # and cannot be delivered by its due time (d_o)
-            # Delivery requires s_p + t_travel + s_d = 28 minutes
-            if (
-                t <= pickup_time <= t_next     # 如果取的时间在这个时间范围内，并且从现在开始取的话将超时的订单
-                and pickup_time + config.s_p + config.t_travel + config.s_d > o[2]
-            ):
-                # Initialize flag to check if the order can be assigned to any courier
-                can_assign = False
-                # Check if any courier (current or new) has a shift that covers the delivery
-                for c_start, c_end in temp_couriers:  # 将目前所有的骑手，判断如果这个骑手的结束时间，还来的及取的话，就让他为true
-                    # Ensure the courier’s shift extends to cover pickup + travel + dropoff
-                    if pickup_time + config.t_travel + config.s_d <= c_end:
-                        # 检查所有骑手，如果有骑手的结束时间比这个取货时间延后的话，就可以取，但问题是，肯定有骑手
-                        # 此时是不是应该判断
-                        # If a courier is available, the order can be assigned
-                        can_assign = True
-                        # Break to avoid checking further couriers
-                        break  
-                # If no courier can deliver the order on time, increment the lost counter
-                if not can_assign:
-                    
-                    lost += 1
-        # Return the total number of lost orders for the reward calculation
-        
+            
+            # 当前时刻立即尝试分配：pickup 最早是 max(ready_time, t + s_p)
+            pickup_time = max(o.ready_time, t + config.s_p)
+            
+            delivery_end_time = pickup_time + config.t_travel + config.s_d
+            
+            if delivery_end_time > o.due_time:
+                # 说明现在即刻出发也送不完
+                lost += 1
+        print(lost)
+
         return lost
+

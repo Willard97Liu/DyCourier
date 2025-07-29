@@ -168,10 +168,20 @@ def train_DQN(
         
     for i_episode in range(start_episode, start_episode + num_episodes):
         
-        state = env.reset()
+        env.reset()
+        
+        t = 5
+        
+        visible_orders = [o for o in env.active_orders if o.order_time <= t]
+        
+            
+        state = env.state_manager.compute_state(
+                    t, env.courier_scheduler, visible_orders
+                )
         
         state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
-       
+        
+        
         
         for t in env.decision_epochs:
             
@@ -179,21 +189,29 @@ def train_DQN(
             
             action = ACTIONS[action_id]
             
-            reward, next_state = env.step(t, action)
-            
-            next_state = torch.tensor(next_state, dtype=torch.float32, device=device).unsqueeze(0)
+            reward = env.step(t, action, visible_orders)
             
             reward = np.array(reward, np.float32)
             
             reward = torch.tensor(reward[None])
             
+            t_next = t + env.config.decision_interval
+            
+            visible_orders = [o for o in env.active_orders if o.order_time <= t_next]
+            
+            # print(env.active_orders)
+        
+            next_state = env.state_manager.compute_state(
+                    t, env.courier_scheduler, visible_orders
+                )
+            
+            next_state = torch.tensor(next_state, dtype=torch.float32, device=device).unsqueeze(0)
+            
             memory.push(state, action_id, next_state, reward)
             # # Move to the next state
             state = next_state
-            
             # # Perform one step of the optimization (on the policy network)
             optimize_model()
-        
            
             if t == 450 and (i_episode + 1) % eval_interval == 0:
                 if save:

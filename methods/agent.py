@@ -53,6 +53,9 @@ class Agent:
             
             state = self.env.reset()
             episode_reward = 0
+            episode_lost = 0
+            episode_order = 0
+            
 
             for t in self.env.decision_epochs:
                 state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
@@ -61,10 +64,9 @@ class Agent:
                 action_id = q_values.argmax(dim=1).item()
                 action = ACTIONS[action_id]
 
-                reward, next_state = self.env.step(t, action)
+                reward, next_state, lost_n = self.env.step(t, action)
                 state = next_state
                 episode_reward += reward
-
 
             episode_rewards[i] = episode_reward
 

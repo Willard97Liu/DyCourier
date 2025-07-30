@@ -19,7 +19,7 @@ class SimulationConfig:
     H0: float = 450
     # Number of pickup locations (N_pickup = 16, representing restaurants or stores)
     # Each location generates orders independently, as specified in the paper
-    N_pickup: int = 3
+    N_pickup: int = 16
     # Show-up delay for on-demand couriers in minutes (delta = 5)
     # On-demand couriers added at time t start their shift at t + delta
     delta: float = 5

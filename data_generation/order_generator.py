@@ -25,7 +25,7 @@ class OrderGenerator:
         # Store configuration for access to parameters like N_pickup and H0
         self.config = config
         # Generate number of orders per pickup location, n_d ~ U[10,20], for N_pickup locations
-        self.orders_per_location = np.random.randint(3, 5, config.N_pickup)
+        self.orders_per_location = np.random.randint(10, 20, config.N_pickup)
         # Total number of orders across all locations
         self.total_orders = sum(self.orders_per_location)
         # Generate order placement times with lunch and dinner peaks

@@ -1,18 +1,15 @@
 import sys
 import os
-import csv
 import numpy as np
 import pandas as pd
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-import pytest
 
 from data_generation.simulator import Simulator
 from data_generation.simulation import SimulationConfig, SimulationUtils
 from data_generation.order_generator import OrderGenerator
 from data_generation.CourierScheduler import CourierScheduler
 from data_generation.StateManager import StateManager
-
 
 def test_run__episode():
     config = SimulationConfig()
@@ -56,7 +53,7 @@ def test_run__episode():
         for i, s, e in active_couriers:
             all_courier_rows.append({"time": t, "index": i, "start": s, "end": e})
         courier_number = courier_scheduler.get_active_couriers(t)
-        print("number of courier:", courier_number)
+        print("time:", t, "number of courier:", courier_number, "index", [row["index"] for row in all_courier_rows if row["time"] == t])
 
         current_orders = [
             o
@@ -93,6 +90,10 @@ def test_run__episode():
             )
         # Compute and log state
         state = state_manager.compute_state(t, courier_scheduler, active_orders)
+        # Check the number of courier
+        assert state[1] == courier_number 
+        # Check the Theta_1
+        
         all_state_rows.append({"timestamp": t, "state": state})
 
     # Save to CSV

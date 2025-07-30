@@ -12,7 +12,7 @@ from data_generation.simulation import SimulationConfig
 from data_generation.CourierScheduler import CourierScheduler
 
 
-def test_run__courier_scheduler_and_export_csv(tmp_path):
+def test_run__courier_scheduler_and_export_csv():
     # Initialize config and scheduler
     config = SimulationConfig()
     courier_scheduler = CourierScheduler(config)
@@ -35,7 +35,7 @@ def test_run__courier_scheduler_and_export_csv(tmp_path):
     assert len(full_schedule) == len(base_couriers) + 3
 
     # Export to CSV
-    csv_path = tmp_path / "couriers.csv"
+    csv_path = "couriers.csv"
     with open(csv_path, mode="w", newline="") as file:
         writer = csv.writer(file)
         writer.writerow(["courier_id", "start_time", "end_time"])

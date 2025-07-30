@@ -152,7 +152,7 @@ class SimulationUtils:
         # Available couriers: shift is active and not currently busy
         available_couriers = [
             (i, start, end)
-            for i, (start, end) in enumerate(active_couriers)
+            for (i, start, end) in active_couriers
             if start <= t < end and courier_busy_until[i] <= t
         ]
 

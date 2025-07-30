@@ -49,12 +49,12 @@ def test_run__episode():
     for t in decision_epochs:
         # Filter active couriers
         active_couriers = [
-            (s, e) for s, e in courier_scheduler.base_schedule if s <= t < e
+            (i, s, e) for i, s, e in courier_scheduler.base_schedule if s <= t < e
         ]
         # print('time: ',t, "Active couriers", active_couriers)
         # Log courier data
-        for s, e in active_couriers:
-            all_courier_rows.append({"time": t, "start": s, "end": e})
+        for i, s, e in active_couriers:
+            all_courier_rows.append({"time": t, "index": i, "start": s, "end": e})
         courier_number = courier_scheduler.get_active_couriers(t)
         print("number of courier:", courier_number)
 

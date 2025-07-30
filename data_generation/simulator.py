@@ -89,7 +89,7 @@ class Simulator:
 
         for t in self.decision_epochs:
             # Filter active couriers
-            active_couriers = [(s, e) for s, e in active_couriers if s <= t < e]
+            active_couriers = [(i, s, e) for i, s, e in active_couriers if s <= t < e]
 
             # Filter and assign only current orders
             # 这个暂时还有问题

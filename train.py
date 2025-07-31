@@ -11,7 +11,7 @@ def train_agents(
     env = DynamicQVRPEnv(config)
     hidden_layers = [1024, 1024, 1024]
     agent = DQNAgent(env, hidden_layers, **agent_configs)
-    agent.train(episodes=20)
+    agent.train(episodes=10000)
     
     
 if __name__ == "__main__":

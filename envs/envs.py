@@ -14,6 +14,8 @@ class DynamicQVRPEnv(gym.Env):
         
         self.config = config
         
+        self.prev_lost = 0  
+        
         self.mode = "train"
         # Initialize order generator to create orders with placement times and locations
         
@@ -40,6 +42,8 @@ class DynamicQVRPEnv(gym.Env):
     def reset(self):
 
         self.active_couriers = self.courier_scheduler.base_schedule[:]
+        
+        self.prev_lost = 0
         
         # 给每个骑手分配唯一标识
         self.id_active_couriers = [
@@ -84,13 +88,17 @@ class DynamicQVRPEnv(gym.Env):
         
         # print(len(visible_orders))
         # 1.更新骑手的数量，并且计算奖励, 这个是计算t之前的订单，但是在t-next会不会丢失
-        n_lost = self.utils.get_lost_orders(
-                t, visible_orders, self.active_couriers, self.config
+        current_lost = self.utils.get_lost_orders(
+                t, visible_orders, self.config
             )
         
+        delta_lost = current_lost - self.prev_lost
+        self.prev_lost = current_lost  # 更新为下一步的前值
+
+        
         # Compute reward
-        reward = self.config.K_lost * n_lost + sum(
+        reward = self.config.K_lost * delta_lost + sum(
                 self.config.K_c[c] for c in new_couriers)
 
         
-        return reward
+        return reward, current_lost

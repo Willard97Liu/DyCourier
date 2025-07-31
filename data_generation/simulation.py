@@ -96,7 +96,7 @@ class SimulationUtils:
         id_active_couriers: List[Tuple[id, float, float]],  # (id, start_time, end_time)
         config: SimulationConfig,
     ):  
-        #### 调试
+        # 调试
         # print(f"现在时间：{t}")
         # for o in visible_orders:
         #     print(f"[订单] 下单时间: {o.order_time:.1f}, 截止时间: {o.due_time:.1f}, 分配骑手: {o.assigned_courier}, 送达时间: {o.delivery_time}")
@@ -124,7 +124,7 @@ class SimulationUtils:
         available_couriers = [
             (i, start, end) for i, start, end in available_couriers if i not in assigned_courier_indices
         ]
-        ### 调试
+        # 调试
         # print("[可用骑手]:")
         # for cid, start, end in available_couriers:
         #     if start <= t < end:
@@ -151,7 +151,7 @@ class SimulationUtils:
                             c for c in available_couriers if c[0] != idx
                         ]
                         break  
-        ### 调试
+        # 调试
         # for o in visible_orders:
         #     print(f"[订单] 下单时间: {o.order_time:.1f}, 截止时间: {o.due_time:.1f}, 分配骑手: {o.assigned_courier}, 送达时间: {o.delivery_time}")
 
@@ -162,28 +162,27 @@ class SimulationUtils:
     def get_lost_orders(
         t: float,
         visible_orders,
-        active_couriers: List[Tuple[float, float]],
         config: SimulationConfig,
     ) -> int:
         """Calculates the number of orders lost between t and t_next."""
 
         lost = 0
-
-        for o in visible_orders: # 判断这些订单哪些订单还没有被派送，并且以后不能派送
-            
-            
+        
+        for o in visible_orders:
             if o.assigned_courier is not None:
                 continue
-            
-            # 当前时刻立即尝试分配：pickup 最早是 max(ready_time, t + s_p)
-            pickup_time = max(o.ready_time, t + config.s_p)
-            
-            delivery_end_time = pickup_time + config.t_travel + config.s_d
-            
-            if delivery_end_time > o.due_time:
-                # 说明现在即刻出发也送不完
-                lost += 1
-        print(lost)
 
+            if t < config.H0:
+                # 不是最后一刻，只判断当前出发也送不完的订单
+                pickup_time = max(o.ready_time, t + config.s_p)
+                delivery_end_time = pickup_time + config.t_travel + config.s_d
+                if delivery_end_time > o.due_time:
+                    lost += 1    
+                    
+            else:
+                # 是最后一刻，所有还没被分配的订单都算 lost
+                lost += 1
+        
+        
         return lost
 

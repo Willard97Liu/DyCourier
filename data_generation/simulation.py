@@ -127,6 +127,7 @@ class SimulationUtils:
                 - assigned: Courier index (integer) or None if unassigned.
                 - delivered_time: Delivery completion time (minutes) or None if not delivered.
             active_couriers: List of tuples representing courier shifts, each with:
+                - index: global index of the courier.
                 - start: Shift start time (minutes).
                 - end: Shift end time (minutes, start + 60 or 90 for 1-hour or 1.5-hour couriers).
             config: SimulationConfig object containing parameters:

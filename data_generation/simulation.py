@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from typing import List, Tuple, Dict
-
+from data_generation.order_generator import Order
 
 @dataclass
 class SimulationConfig:
@@ -92,7 +92,7 @@ class SimulationUtils:
     @staticmethod
     def assign_orders(
         t: float,
-        visible_orders,
+        visible_orders: Order,
         id_active_couriers: List[Tuple[id, float, float]],  # (id, start_time, end_time)
         config: SimulationConfig,
     ):

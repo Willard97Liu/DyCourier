@@ -26,12 +26,11 @@ class CourierScheduler:
         self.config = config
         # Generate base courier schedule (pre-scheduled couriers)
         self.mode = "train"
-        
+
         self.base_schedule = self._generate_base_schedule()
         # Initialize empty list for on-demand couriers added during simulation
         self.on_demand_schedule = []
-        
-        
+
     def set_mode(self, mode: str):
         assert mode in ["train", "test"], f"Unknown mode: {mode}"
         self.mode = mode
@@ -48,11 +47,11 @@ class CourierScheduler:
             List of tuples (start_time, courier_type), where start_time is in minutes and
             courier_type is 1 (1-hour) or 1.5 (1.5-hour).
         """
-            
+
         # 这个是不是不要加1，而是+60，或者65
         # Randomly select number of 1-hour couriers (D1 ~ U[20,30])
         D1 = np.random.randint(self.config.D1_range[0], self.config.D1_range[1] + 1)
-        
+
         # Randomly select number of 1.5-hour couriers (D1.5 ~ U[10,20])
         D1_5 = np.random.randint(
             self.config.D1_5_range[0], self.config.D1_5_range[1] + 1
@@ -73,7 +72,6 @@ class CourierScheduler:
                     for offset in np.random.randint(-20, 21, size=count)
                 ]
             )
-        
 
         # Add 1.5-hour couriers at start times t=0, 120, 240, 360 minutes
         for t in [0, 120, 240, 360]:
@@ -91,7 +89,7 @@ class CourierScheduler:
             )
 
         return schedule
-    
+
     def add_on_demand_couriers(self, t: float, action: Tuple[int, int]) -> None:
         """Adds on-demand couriers to the schedule based on the action taken.
 

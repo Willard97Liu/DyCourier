@@ -88,49 +88,47 @@ class SimulationUtils:
     with travel time (t_travel=20) to limit assignments, helping maintain non-zero q_orders during
     peak periods (180–300, 360–450 minutes).
     """
+
     @staticmethod
     def assign_orders(
         t: float,
         visible_orders,
-        active_couriers: List[Tuple[float, float]],  # (start_time, end_time)
         id_active_couriers: List[Tuple[id, float, float]],  # (id, start_time, end_time)
         config: SimulationConfig,
-    ):  
+    ):
         # 调试
         # print(f"现在时间：{t}")
         # for o in visible_orders:
         #     print(f"[订单] 下单时间: {o.order_time:.1f}, 截止时间: {o.due_time:.1f}, 分配骑手: {o.assigned_courier}, 送达时间: {o.delivery_time}")
 
-        
-        unassigned_orders = [
-            o for o in visible_orders if o.assigned_courier is None 
-        ]
+        unassigned_orders = [o for o in visible_orders if o.assigned_courier is None]
 
         available_couriers = [
             (cid, start, end)
             for (cid, start, end) in id_active_couriers
             if start <= t < end
         ]
-    
+
         ## 过滤掉正在派送订单的骑手，但是还要考虑送完订单的骑手，只要分配骑手，它的delivery_time就不为空
         assigned_courier_indices = {
             o.assigned_courier
             for o in visible_orders
-            if o.assigned_courier is not None and o.delivery_time is not None and t < o.delivery_time
+            if o.assigned_courier is not None
+            and o.delivery_time is not None
+            and t < o.delivery_time
         }
 
-        
         ## 用所有骑手减去这些正在派送订单的骑手
         available_couriers = [
-            (i, start, end) for i, start, end in available_couriers if i not in assigned_courier_indices
+            (i, start, end)
+            for i, start, end in available_couriers
+            if i not in assigned_courier_indices
         ]
         # 调试
         # print("[可用骑手]:")
         # for cid, start, end in available_couriers:
         #     if start <= t < end:
         #         print(f"ID={cid}, 在线时间=[{start}, {end})")
-
-        
 
         # Step 3: 给目前未分配的订单分配骑手
         # 计算这些订单的最早开始可以去取的时间和计算这个订单，从最早现在去取，并且送完后的这个时间
@@ -140,9 +138,11 @@ class SimulationUtils:
             pickup_time = max(order.ready_time, t + config.s_p)
             delivery_end_time = pickup_time + config.t_travel + config.s_d
 
-            if delivery_end_time <= order.due_time:   # 这个订单理论上能够分配，就看现在有没有合适的车了
+            if (
+                delivery_end_time <= order.due_time
+            ):  # 这个订单理论上能够分配，就看现在有没有合适的车了
                 for idx, c_start, c_end in available_couriers:
-                    if delivery_end_time <= c_end: # 有合适的车
+                    if delivery_end_time <= c_end:  # 有合适的车
                         # 分配成功
                         order.assigned_courier = idx
                         order.delivery_time = delivery_end_time
@@ -150,13 +150,10 @@ class SimulationUtils:
                         available_couriers = [
                             c for c in available_couriers if c[0] != idx
                         ]
-                        break  
+                        break
         # 调试
         # for o in visible_orders:
         #     print(f"[订单] 下单时间: {o.order_time:.1f}, 截止时间: {o.due_time:.1f}, 分配骑手: {o.assigned_courier}, 送达时间: {o.delivery_time}")
-
-        
-                    
 
     @staticmethod
     def get_lost_orders(
@@ -167,7 +164,7 @@ class SimulationUtils:
         """Calculates the number of orders lost between t and t_next."""
 
         lost = 0
-        
+
         for o in visible_orders:
             if o.assigned_courier is not None:
                 continue
@@ -177,12 +174,10 @@ class SimulationUtils:
                 pickup_time = max(o.ready_time, t + config.s_p)
                 delivery_end_time = pickup_time + config.t_travel + config.s_d
                 if delivery_end_time > o.due_time:
-                    lost += 1    
-                    
+                    lost += 1
+
             else:
                 # 是最后一刻，所有还没被分配的订单都算 lost
                 lost += 1
-        
-        
-        return lost
 
+        return lost

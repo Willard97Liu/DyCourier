@@ -5,13 +5,13 @@ from data_generation.simulation import SimulationConfig
 
 class Order:
     def __init__(self, t, r, d, loc):
-        self.order_time = t            # 下单时间
-        self.ready_time = r            # 准备时间
-        self.due_time = d              # 截止时间
-        self.location = loc            # 接单地点
-        self.assigned_courier = None   # 已分配骑手 ID
-        self.delivery_time = None      # 实际送达时间
-        self.status = "unassigned"     # 状态：unassigned / assigned / delivered / lost
+        self.order_time = t  # 下单时间
+        self.ready_time = r  # 准备时间
+        self.due_time = d  # 截止时间
+        self.location = loc  # 接单地点
+        self.assigned_courier = None  # 已分配骑手 ID
+        self.delivery_time = None  # 实际送达时间
+        self.status = "unassigned"  # 状态：unassigned / assigned / delivered / lost
 
     def is_visible(self, t):
         return self.order_time <= t

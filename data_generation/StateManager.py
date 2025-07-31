@@ -19,9 +19,17 @@ class StateManager:
         q_couriers = courier_scheduler.get_active_couriers(t)
 
         # 未被分配，且当前时间在 ready_time 和 due_time 之间的订单数量
-        q_orders = len([o for o in visible_orders if o.assigned_courier is None and o.ready_time <= t < o.due_time])
+        q_orders = len(
+            [
+                o
+                for o in visible_orders
+                if o.assigned_courier is None and o.ready_time <= t < o.due_time
+            ]
+        )
 
-        Theta1 = courier_scheduler.get_courier_changes(t, self.config.state_params["k1"])
+        Theta1 = courier_scheduler.get_courier_changes(
+            t, self.config.state_params["k1"]
+        )
 
         # 最近 k2 时间内产生的订单数
         Theta2 = sum(
@@ -34,25 +42,38 @@ class StateManager:
         Theta3 = sum(
             1
             for o in visible_orders
-            if t < max(o.ready_time, t + self.config.s_p) <= t + self.config.state_params["k3"]
-            and max(o.ready_time, t + self.config.s_p) + self.config.t_travel + self.config.s_d > o.due_time
+            if t
+            < max(o.ready_time, t + self.config.s_p)
+            <= t + self.config.state_params["k3"]
+            and max(o.ready_time, t + self.config.s_p)
+            + self.config.t_travel
+            + self.config.s_d
+            > o.due_time
         )
 
         # Theta4: 上述订单的平均违约时间（只对 Theta3 > 0 的情况）
         Theta4 = (
-            np.mean([
-                o.due_time
-                - (
-                    max(o.ready_time, t + self.config.s_p)
-                    + self.config.s_p
+            np.mean(
+                [
+                    o.due_time
+                    - (
+                        max(o.ready_time, t + self.config.s_p)
+                        + self.config.s_p
+                        + self.config.t_travel
+                        + self.config.s_d
+                    )
+                    for o in visible_orders
+                    if t
+                    < max(o.ready_time, t + self.config.s_p)
+                    <= t + self.config.state_params["k3"]
+                    and max(o.ready_time, t + self.config.s_p)
                     + self.config.t_travel
                     + self.config.s_d
-                )
-                for o in visible_orders
-                if t < max(o.ready_time, t + self.config.s_p) <= t + self.config.state_params["k3"]
-                and max(o.ready_time, t + self.config.s_p) + self.config.t_travel + self.config.s_d > o.due_time
-            ])
-            if Theta3 > 0 else 0
+                    > o.due_time
+                ]
+            )
+            if Theta3 > 0
+            else 0
         )
 
         return [time_remaining, q_couriers, q_orders, Theta1, Theta2, Theta3, Theta4]

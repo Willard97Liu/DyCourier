@@ -4,16 +4,12 @@ from typing import List
 from simulation import SimulationConfig
 from order_generator import OrderGenerator  # 确保模块名正确
 import numpy as np
-import os,sys
+import os, sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 
-def generate_order_episodes(
-    config: SimulationConfig, 
-    seeds: List[int], 
-    save_path: str
-):
+def generate_order_episodes(config: SimulationConfig, seeds: List[int], save_path: str):
     all_episodes = []
 
     for seed in seeds:
@@ -23,7 +19,8 @@ def generate_order_episodes(
 
         # 强制类型转换为纯 Python 类型（避免 numpy.float64）
         episode_orders = [
-            (float(t_o), float(r_o), float(d_o), int(loc)) for (t_o, r_o, d_o, loc) in orders
+            (float(t_o), float(r_o), float(d_o), int(loc))
+            for (t_o, r_o, d_o, loc) in orders
         ]
 
         all_episodes.append(episode_orders)

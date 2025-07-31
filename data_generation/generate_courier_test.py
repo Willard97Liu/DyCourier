@@ -6,7 +6,7 @@ import os, sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 
-from simulation import SimulationConfig
+from data_generation.config import SimulationConfig
 from typing import List, Tuple
 
 

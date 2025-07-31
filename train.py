@@ -2,7 +2,7 @@ from tqdm import tqdm
 import numpy as np
 from methods.agent import DQNAgent
 from envs.envs import DynamicQVRPEnv
-from data_generation.simulation import SimulationConfig
+from data_generation.config import SimulationConfig
 
 def train_agents(
     agent_configs = {}

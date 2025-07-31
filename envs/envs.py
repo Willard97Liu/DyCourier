@@ -1,6 +1,6 @@
 import gymnasium as gym
 
-from data_generation.simulation import SimulationUtils, SimulationConfig
+from data_generation.config import SimulationUtils, SimulationConfig
 from data_generation.order_generator import OrderGenerator
 from data_generation.StateManager import StateManager
 from data_generation.CourierScheduler import CourierScheduler

@@ -5,7 +5,7 @@ import pandas as pd
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from data_generation.simulation import SimulationConfig
+from data_generation.config import SimulationConfig
 from data_generation.order_generator import OrderGenerator  # This should be the version with Order objects
 
 def test_order_generator_object_based():

@@ -1,7 +1,7 @@
 import os
 import pickle
 from typing import List
-from simulation import SimulationConfig
+from data_generation.config import SimulationConfig
 from order_generator import OrderGenerator  # 确保模块名正确
 import numpy as np
 import os, sys

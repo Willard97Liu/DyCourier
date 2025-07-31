@@ -5,7 +5,8 @@ import pandas as pd
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import pytest
-from data_generation.simulation import SimulationConfig, SimulationUtils
+from data_generation.config import SimulationConfig
+from data_generation.utils import SimulationUtils
 from data_generation.order_generator import Order
 
 def test_assign_orders_no_orders():

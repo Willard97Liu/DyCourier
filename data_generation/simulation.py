@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from typing import List, Tuple, Dict
-from data_generation.order_generator import Order
 
 @dataclass
 class SimulationConfig:
@@ -88,6 +87,8 @@ class SimulationUtils:
     with travel time (t_travel=20) to limit assignments, helping maintain non-zero q_orders during
     peak periods (180–300, 360–450 minutes).
     """
+    #To avoid circular import 
+    from data_generation.order_generator import Order
 
     @staticmethod
     def assign_orders(

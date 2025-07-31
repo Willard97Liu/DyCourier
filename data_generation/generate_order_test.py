@@ -6,7 +6,7 @@ from order_generator import OrderGenerator  # 确保模块名正确
 import numpy as np
 import os, sys
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 
 def generate_order_episodes(config: SimulationConfig, seeds: List[int], save_path: str):

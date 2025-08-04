@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Tuple, Dict
-
+from numpy.random import default_rng
+import numpy as np
 
 @dataclass
 class SimulationConfig:
@@ -8,6 +9,10 @@ class SimulationConfig:
 
     This class centralizes all configuration parameters required for the rapid delivery system simulation. It defines the temporal, spatial, and operational settings, including service and travel times, courier types, and state vector parameters. The settings are derived from the paper’s experimental setup (page 15), with an added travel time parameter to model realistic delivery durations between pickup and dropoff locations. The configuration ensures consistency across simulation components (Simulator, OrderGenerator, CourierScheduler, StateManager) and supports the Markov Decision Process (MDP) for DQN training.
     """
+    
+    seed: int = None 
+    
+    rng: np.random.Generator = None
 
     # Total operating period in minutes (H = 540 minutes, or 9 hours, from 9:00 AM to 6:00 PM)
     # Represents the full simulation duration, during which orders are placed and delivered
@@ -63,6 +68,7 @@ class SimulationConfig:
         if not provided during instantiation. Ensures the simulation uses consistent settings
         as specified in the paper (page 15) for reproducibility and alignment with the MDP.
         """
+        self.rng = default_rng(self.seed)
         # Set default courier types if not provided: 1-hour and 1.5-hour shifts
         # Matches the paper’s specification of two courier types
         self.C = [1, 1.5] if self.C is None else self.C
@@ -180,9 +186,9 @@ class SimulationUtils:
                     lost += 1    
                     
             else:
+            
                 # 是最后一刻，所有还没被分配的订单都算 lost
                 lost += 1
-        
         
         return lost
 

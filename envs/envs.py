@@ -49,13 +49,11 @@ class DynamicQVRPEnv(gym.Env):
         self.id_active_couriers = [
             (i, start, end) for i, (start, end) in enumerate(self.active_couriers)
         ] 
-
         
         
         if self.mode == "train":
             self.order_generator = OrderGenerator(self.config)
             self.active_orders = self.order_generator.get_orders()
-            # print(len(self.active_orders))
 
     
     
@@ -92,13 +90,15 @@ class DynamicQVRPEnv(gym.Env):
                 t, visible_orders, self.config
             )
         
-        delta_lost = current_lost - self.prev_lost
-        self.prev_lost = current_lost  # 更新为下一步的前值
+        # delta_lost = current_lost - self.prev_lost
+        
+
+        # self.prev_lost = current_lost  # 更新为下一步的前值
 
         
-        # Compute reward
-        reward = self.config.K_lost * delta_lost + sum(
-                self.config.K_c[c] for c in new_couriers)
-
+        # # Compute reward
+        # reward = self.config.K_lost * delta_lost + sum(
+        #         self.config.K_c[c] for c in new_couriers)
         
-        return reward, current_lost
+        
+        return current_lost

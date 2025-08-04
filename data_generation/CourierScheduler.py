@@ -51,12 +51,12 @@ class CourierScheduler:
             
         # 这个是不是不要加1，而是+60，或者65
         # Randomly select number of 1-hour couriers (D1 ~ U[20,30])
-        D1 = np.random.randint(self.config.D1_range[0], self.config.D1_range[1] + 1)
         
-        # Randomly select number of 1.5-hour couriers (D1.5 ~ U[10,20])
-        D1_5 = np.random.randint(
-            self.config.D1_5_range[0], self.config.D1_5_range[1] + 1
-        )
+        D1 = self.config.rng.integers(self.config.D1_range[0], self.config.D1_range[1] + 1)
+
+        D1_5 = self.config.rng.integers(self.config.D1_5_range[0], self.config.D1_5_range[1] + 1)
+
+        
         # Initialize empty schedule
         schedule = []
         # Add 1-hour couriers at start times t=60, 120, 270, 330 minutes
@@ -70,7 +70,7 @@ class CourierScheduler:
             schedule.extend(
                 [
                     (max(0, t + offset), max(0, t + offset) + 60)
-                    for offset in np.random.randint(-20, 21, size=count)
+                    for offset in self.config.rng.integers(-20, 21, size=count)
                 ]
             )
         
@@ -86,7 +86,7 @@ class CourierScheduler:
             schedule.extend(
                 [
                     (max(0, t + offset), max(0, t + offset) + 90)
-                    for offset in np.random.randint(-20, 21, size=count)
+                    for offset in self.config.rng.integers(-20, 21, size=count)
                 ]
             )
 

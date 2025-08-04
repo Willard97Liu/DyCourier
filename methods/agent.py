@@ -9,13 +9,13 @@ from pathlib import Path
 
 import pickle
 
-from methods.ML.RL import train_DQN, NN
+from methods.ML.RL import train_reinforce
 
 
 
 class Agent:
-    def __init__(self, env):
-        self.env = env
+    def __init__(self, env_fn):
+        self.env_fn = env_fn
     
     def act(self, **kwargs):
         return int(self.env.action_space.sample())
@@ -74,18 +74,18 @@ class Agent:
 
     
     
-class DQNAgent(Agent):
+class REINFORCE_Agent(Agent):
     """The reinforcement learning agent
     This agent is trained with trial and error.
     """
     def __init__(
         self,
-        env,
+        env_fn,
         hidden_layers,
         test = False,
         **kwargs
         ):
-        super().__init__(env, **kwargs)
+        super().__init__(env_fn, **kwargs)
         
         if test:
             self.model = NN(
@@ -94,15 +94,15 @@ class DQNAgent(Agent):
                 6
             )
             
-        self.env =env
+        self.env_fn = env_fn
         self.hidden_layers = hidden_layers
         
         
-    def train(self, episodes, **kwargs):
+    def train(self, epoch, **kwargs):
         
-        train_DQN(
-            env = self.env,
+        train_reinforce(
+            env_fn = self.env_fn,
             hidden_layers = self.hidden_layers,
-            num_episodes = episodes
+            epoch = epoch
         )
         

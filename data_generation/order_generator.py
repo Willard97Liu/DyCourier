@@ -28,7 +28,7 @@ class OrderGenerator:
 
     def __init__(self, config: SimulationConfig):
         self.config = config
-        self.orders_per_location = np.random.randint(10, 21, config.N_pickup)
+        self.orders_per_location = self.config.rng.integers(10, 21, config.N_pickup)
         self.total_orders = sum(self.orders_per_location)
         self.order_times = self._generate_order_times()
         self.order_ready_times = self.order_times + 10
@@ -40,9 +40,16 @@ class OrderGenerator:
         n_lunch = self.total_orders // 4
         n_dinner = self.total_orders - n_uniform - n_lunch
 
-        uniform_times = np.random.uniform(0, self.config.H0, n_uniform)
-        lunch_times = np.random.normal(loc=240, scale=30, size=n_lunch)
-        dinner_times = np.random.normal(loc=405, scale=30, size=n_dinner)
+        # uniform_times = np.random.uniform(0, self.config.H0, n_uniform)
+        # lunch_times = np.random.normal(loc=240, scale=30, size=n_lunch)
+        # dinner_times = np.random.normal(loc=405, scale=30, size=n_dinner)
+        
+        
+        uniform_times = self.config.rng.uniform(0, self.config.H0, n_uniform)
+        lunch_times = self.config.rng.normal(loc=240, scale=30, size=n_lunch)
+        dinner_times = self.config.rng.normal(loc=405, scale=30, size=n_dinner)
+
+        
 
         order_times = np.concatenate([uniform_times, lunch_times, dinner_times])
         order_times = np.clip(order_times, 0, self.config.H0)
@@ -61,7 +68,9 @@ class OrderGenerator:
                 locations,
             )
         )
-        np.random.shuffle(order_data)
+        # np.random.shuffle(order_data)
+        self.config.rng.shuffle(order_data)
+        
         _, _, _, locations = zip(*order_data)
         return list(locations)
 

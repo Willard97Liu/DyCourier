@@ -7,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from methods.agent import DQNAgent  
 from envs.envs import DynamicQVRPEnv
-from data_generation.config import SimulationConfig
+from data_generation.Config import SimulationConfig
 import os, re
 
 BASE_DIR = Path(__file__).resolve().parent.parent

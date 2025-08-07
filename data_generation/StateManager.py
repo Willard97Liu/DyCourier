@@ -1,7 +1,7 @@
 import numpy as np
 from typing import List, Tuple
-from data_generation.config import SimulationConfig
-from data_generation.order_generator import Order
+from data_generation.Config import SimulationConfig
+from data_generation.OrderGenerator import Order
 from data_generation.CourierScheduler import CourierScheduler
 
 

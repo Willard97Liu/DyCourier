@@ -1,7 +1,7 @@
 import gymnasium as gym
 
-from data_generation.config import SimulationUtils, SimulationConfig
-from data_generation.order_generator import OrderGenerator
+from data_generation.Config import SimulationUtils, SimulationConfig
+from data_generation.OrderGenerator import OrderGenerator
 from data_generation.StateManager import StateManager
 from data_generation.CourierScheduler import CourierScheduler
 import numpy as np
@@ -43,9 +43,9 @@ class DynamicQVRPEnv(gym.Env):
         self.prev_lost = 0
 
         # 给每个骑手分配唯一标识
-        self.id_active_couriers = [
-            (i, start, end) for i, (start, end) in enumerate(self.active_couriers)
-        ]
+        # self.id_active_couriers = [
+        #     (i, start, end) for i, (start, end) in enumerate(self.active_couriers)
+        # ]
 
         if self.mode == "train":
             self.order_generator = OrderGenerator(self.config)

@@ -1,6 +1,6 @@
 import numpy as np
 from typing import List
-from data_generation.config import SimulationConfig
+from data_generation.Config import SimulationConfig
 
 
 class Order:

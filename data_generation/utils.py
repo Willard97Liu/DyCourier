@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from typing import List, Tuple, Dict
-from data_generation.config import SimulationConfig
+from data_generation.Config import SimulationConfig
 
 
 class SimulationUtils:
@@ -13,7 +13,7 @@ class SimulationUtils:
     peak periods (180–300, 360–450 minutes).
     """
     #To avoid circular import 
-    from data_generation.order_generator import Order
+    from data_generation.OrderGenerator import Order
 
     @staticmethod
     def assign_orders(

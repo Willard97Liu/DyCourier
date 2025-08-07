@@ -7,7 +7,7 @@ import pandas as pd
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import pytest
-from data_generation.config import SimulationConfig
+from data_generation.Config import SimulationConfig
 from data_generation.CourierScheduler import CourierScheduler
 
 

@@ -7,9 +7,9 @@ import pandas as pd
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import pytest
-from data_generation.config import SimulationConfig
-from data_generation.utils import SimulationUtils
-from data_generation.order_generator import Order
+from data_generation.Config import SimulationConfig
+from data_generation.Utils import SimulationUtils
+from data_generation.OrderGenerator import Order
 
 
 def test_get_lost_orders_no_orders():
